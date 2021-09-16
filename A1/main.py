@@ -24,27 +24,33 @@ def parse_args():
 
 def baseline_bgs(args):
     #TODO complete this function
-    pass
+    from baseline import model
+    return model(args)
+    
 
 
 def illumination_bgs(args):
     #TODO complete this function
-    pass
+    from illumination import model
+    return model(args)
 
 
 def jitter_bgs(args):
     #TODO complete this function
-    pass
+    from jitter import model
+    return model(args)
 
 
 def dynamic_bgs(args):
     #TODO complete this function
-    pass
+    from dynamic import model
+    return model(args)
 
 
 def ptz_bgs(args):
     #TODO: (Optional) complete this function
-    pass
+    from ptz import model
+    return model(args)
 
 
 def main(args):
