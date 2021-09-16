@@ -1,9 +1,11 @@
 import os
 import cv2 as cv
 import re
+import numpy as np
 
 def remove_noise(img, filter_size=3,threshold=80):
     kernel = np.ones((filter_size,filter_size),np.uint8)
+    _,img = cv.threshold(img, 45, 255, cv.THRESH_BINARY)
 
     img = cv.morphologyEx(img, cv.MORPH_CLOSE, kernel,iterations=1)
     return img
