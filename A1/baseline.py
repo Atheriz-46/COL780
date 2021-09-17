@@ -6,10 +6,17 @@ import numpy as np
 def remove_noise(img, filter_size=3,threshold=80):
     kernel = np.ones((filter_size,filter_size),np.uint8)
     _,img = cv.threshold(img, 126, 255, cv.THRESH_BINARY)#127-0.4861, 126-0.6436
-    img = cv.GaussianBlur(img,(19,19),0)
+    #img = cv.Sobel(src=img, ddepth=cv.CV_64F, dx=1, dy=1, ksize=5)
+    img= cv.medianBlur(img,9)
     _,img = cv.threshold(img, 126, 255, cv.THRESH_BINARY)#127-0.4861, 126-0.7239
-
-    img = cv.morphologyEx(img, cv.MORPH_CLOSE, kernel,iterations=2)
+    #img = cv.GaussianBlur(img,(19,19),0)
+    #_,img = cv.threshold(img, 126, 255, cv.THRESH_BINARY)#127-0.4861, 126-0.7239
+    
+    img = cv.morphologyEx(img, cv.MORPH_CLOSE, kernel,iterations=5)
+  
+# Using cv2.erode() method 
+    img = cv.erode(img, kernel,iterations=1)
+    #_,img = cv.threshold(img, 126, 255, cv.THRESH_BINARY)#127-0.4861, 126-0.7239
     return img
     
     # img= np.where(img<threshold,0,255)
@@ -44,6 +51,7 @@ def model(args):
             
             if frame_no>=start and frame_no<=end:
                 
+
                 cv.imwrite(os.path.join(args.out_path,'gt' + file[2:-3]+'png'), remove_noise(fgMask,3))
 
             
