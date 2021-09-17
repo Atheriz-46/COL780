@@ -6,7 +6,7 @@ import numpy as np
 def remove_noise(img, filter_size=3,threshold=80):
     kernel = np.ones((filter_size,filter_size),np.uint8)
     _,img = cv.threshold(img, 126, 255, cv.THRESH_BINARY)#127-0.4861, 126-0.6436
-    img = cv.GaussianBlur(img,(19,19),0)
+    img = cv.GaussianBlur(img,(19,19),1)
     _,img = cv.threshold(img, 126, 255, cv.THRESH_BINARY)#127-0.4861, 126-0.7239
 
     img = cv.morphologyEx(img, cv.MORPH_CLOSE, kernel,iterations=2)
