@@ -1,2 +1,2 @@
-py main.py -i data\baseline\input -o data\baseline\output -e data\baseline\eval_frames.txt -c b
-py eval.py -g data\baseline\groundtruth -p data\baseline\output
+py main.py -i data\illumination\input -o data\illumination\output -e data\illumination\eval_frames.txt -c i
+py eval.py -g data\illumination\groundtruth -p data\illumination\output

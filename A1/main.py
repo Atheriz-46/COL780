@@ -49,12 +49,11 @@ def dynamic_bgs(args):
 
 def ptz_bgs(args):
     #TODO: (Optional) complete this function
-    from ptz import model
-    return model(args)
+    pass
 
 
 def main(args):
-    if args.category not in "bijdp":
+    if args.category not in "bijmp":
         raise ValueError("category should be one of b/i/j/m/p - Found: %s"%args.category)
     FUNCTION_MAPPER = {
             "b": baseline_bgs,
