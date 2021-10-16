@@ -129,3 +129,4 @@ dmypy.json
 .pyre/
 data/
 A1/data.zip
+A2/data.zip
