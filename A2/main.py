@@ -50,8 +50,8 @@ def NSSE(t,f):
     return -np.linalg.norm(f-t)**2
 def NCC(t,f):
     return np.sum(f*t)/np.std(f)
-def main(dir,p_0,delp,np,outfile,metric = NSSE):
-    sample = [np.linspace(-dp,dp,n) for dp,n in zip(delp,np)]
+def main(dir,p_0,delp,n_p,outfile,metric = NSSE):
+    sample = [np.linspace(-dp,dp,n) for dp,n in zip(delp,n_p)]
     sample = np.meshgrid(*sample)
     imp_path = os.path.join(dir,'img')
     gt = genfromtxt(os.path.join(dir,'groundtruth_rect.txt'), delimiter=',')
