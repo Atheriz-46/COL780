@@ -1,5 +1,5 @@
 import cv2 as cv
-import pandas as pd 
+# import pandas as pd 
 import numpy as np 
 import math
 import os
@@ -18,13 +18,14 @@ class Projective(Transformation):
         self.H = p 
     def transform(self,img,box,dp=np.zeros((3,3))):
         x,y,w,h = box
+        # y,x,h,w = box
         p = self.H 
         b = bilinear_interpolate(img)
         dp.resize((3,3),refcheck=False)
         def func(x_,y_):
             res=(p+dp)@np.array([x_,y_,1])
             res = res/res[2]
-            return b(res[0],res[1])
+            return b(res[1],res[0])
         Iw = np.zeros((h+1,w+1))
         for j in range(h+1):
             for i in range(w+1):
@@ -32,19 +33,20 @@ class Projective(Transformation):
         return Iw
     def get_box(self,box):
         x,y,w,h = box
-        coords = self.H@np.array([[y,x,1],[y,x+w,1],[y+h,x+w,1],[y+h,x,1]]) 
-        coords = coords/coords[:,-1]
-        y,x,_ = np.min(coords,axis=1)       
-        h,w,_ = np.max(coords,axis=1)      
-        return [mat.floor(y),math.floor(x),math.ceil(y-h),math.ceil(x-w)] 
+        coords = np.array([[y,x,1],[y,x+w,1],[y+h,x+w,1],[y+h,x,1]])@self.H.T
+        coords = coords/coords[:,-1:]
+        y,x,_ = np.min(coords,axis=0)       
+        h,w,_ = np.max(coords,axis=0)      
+        return [math.floor(y),math.floor(x),math.ceil(y-h),math.ceil(x-w)] 
     def select(self,dp):
-        print(dp)
-        self.H += dp.resize((3,3),refcheck=False)
+        # print(dp)
+        dp.resize((3,3),refcheck=False)
+        self.H += dp
 
 
 def bilinear_interpolate(img):
     def image(x,y):
-        if y>=img.shape[1] or y<0 or x>=img.shape[0] or x<0:
+        if y>=img.shape[1]-1 or y<0 or x>=img.shape[0]-1 or x<0:
             raise IndexError
         i,j = int(x),int(y)
         a,b = x-i,y-j
@@ -72,7 +74,10 @@ def IOU(box1,box2):
 
 def block_based(dir,p_0,delp,n_p,outfile,metric = NSSE):
     sample = [np.linspace(-dp,dp,n) for dp,n in zip(delp,n_p)]
-    sample = np.meshgrid(*sample)
+    sample = np.stack(np.meshgrid(*sample)).reshape((-1,8))
+
+    # print(sample.shape,len(sample))
+    # return
     inp_path = os.path.join(dir,'img')
     gt = np.genfromtxt(os.path.join(dir,'groundtruth_rect.txt'), delimiter=',')
     gt = np.int32(gt)
@@ -95,7 +100,9 @@ def block_based(dir,p_0,delp,n_p,outfile,metric = NSSE):
             frame_no = int(re.search(r'[0-9]+',file)[0])
    #################
             max_,best_p=None, None
+            print('lol')
             for dp in sample:
+                # print(dp.shape)
                 try:
                     Iw = homo.transform(frame,box,dp)
                     k = metric(template_cut,Iw)
@@ -103,6 +110,8 @@ def block_based(dir,p_0,delp,n_p,outfile,metric = NSSE):
                         best_p = dp
                         max_ = k 
                 except:
+                    # print('lda')
+
                     continue
             homo.select(best_p)
             box_t = homo.get_box(box)
@@ -126,24 +135,32 @@ def block_based(dir,p_0,delp,n_p,outfile,metric = NSSE):
 
 '''Needs lots of work'''
 class LK:
-    def __init__(self,template,box ,p = np.eye(3)):
+    def __init__(self,template,box ,p = np.eye(3),tol = 1e-5):
         self.geometry = Projective(p)
         self.template_img = template
         self.box = box
         self.template =  template[box[1]:box[1]+box[3]+1,box[0]:box[0]+box[2]+1]
         self.p = p
+        self.tol = tol
 
     
     def fit(self,img):
         self.img = img
+        Iw = self.geometry.transform(img,self.box)
+        t1 = np.matmul(self.del_I(Iw),self.del_W()) 
+        H  = np.einsum('ijkl,ijkm->lm',t1,t1)
+        dp = np.linalg.inv(H).dot(np.einsum('ijkl,ij->lk',t1,self.template-Iw))
         while(np.linalg.norm(dp)>self.tol):
-            t1 = np.matmul(self.del_I(),self.del_W()) 
-            H  = np.einsum('ijkl,ijkm->lm',t1,t1)
             Iw = self.geometry.transform(img,self.box)
+            t1 = np.matmul(self.del_I(Iw),self.del_W()) 
+            H  = np.einsum('ijkl,ijkm->lm',t1,t1)
             dp = np.linalg.inv(H).dot(np.einsum('ijkl,ij->lk',t1,self.template-Iw))
-            self.p+=dp.resize((3,3),refcheck=False)
+            print(self.p)
+            dp.resize((3,3),refcheck=False)
+            self.p=self.p + dp
+            self.geometry.select(dp)
         return self.geometry.get_box(self.box)
-    def del_I(self):
+    def del_I(self,Iw):
         '''h x w x 1 x 2'''
         dx = np.array([[-1,0,1],
                     [-2,0,2],
@@ -155,17 +172,22 @@ class LK:
     def del_W(self):
         x = np.arange(self.box[0],self.box[0]+self.box[2]+1)
         y = np.arange(self.box[1],self.box[1]+self.box[3]+1)
-        xx,yy = np.meshgrid(x,y,sparse =True)
+        xx,yy = np.meshgrid(x,y)
         
         return self.Wp_affine(xx,yy)
     def Wp_affine(self,x,y):
-        return np.array([[x,0,y,0,1,0],[0,x,0,y,0,1]]).transpose((2,3,0,1))#2 x p x h x w
+        shape = x.shape
+        k = np.stack((np.stack((x,np.zeros(shape),y,np.zeros(shape),np.ones(shape),np.zeros(shape))),
+                    np.stack((np.zeros(shape),x,np.zeros(shape),y,np.zeros(shape),np.ones(shape)))))
+        # print(k.shape,x.shape,y.shape)
+        return k.transpose((2,3,0,1))#2 x p x h x w
     
-    def Wp_projective(self,x,y):
-        xp = p.dot(np.array([x,y,1]))
-        xp,yp,c = xp
-        xp,yp = xp/c,yp/c 
-        return (np.array([[x,y,1,0,0,0,-x*xp,-y*xp],[0,0,0,x,y,1,-x*yp,-y*yp]])/c).transpose((2,3,0,1))
+    # def Wp_projective(self,x,y):
+    #     xp = p.dot(np.array([x,y,1]))
+    #     xp,yp,c = xp
+    #     xp,yp = xp/c,yp/c 
+    #     return (np.array([[x,y,1,0,0,0,-x*xp,-y*xp],[0,0,0,x,y,1,-x*yp,-y*yp]])/c).transpose((2,3,0,1))
+
 def lk_tracker(dir,outfile):
     inp_path = os.path.join(dir,'img')
     gt = np.genfromtxt(os.path.join(dir,'groundtruth_rect.txt'), delimiter=',')
@@ -208,8 +230,12 @@ def lk_tracker(dir,outfile):
 
 
 
-delp = [0.5*1e-2]*8
+delp = [0.5*1e2]*8
 n_p = [5]*8
-block_based('./A2/BlurCar2',np.eye(3),delp,n_p,'./A2/BlurCar2/outfile')
+# block_based('./A2/BlurCar2',np.eye(3),delp,n_p,'./A2/BlurCar2/outfile')
+block_based('.\A2\data\BlurCar2',np.eye(3),delp,n_p,'.\A2\data\BlurCar2\outfile')
+
+
+# lk_tracker('.\A2\data\BlurCar2','.\A2\data\BlurCar2\outfile')
 # def LK():
     # pass
