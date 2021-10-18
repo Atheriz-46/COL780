@@ -166,7 +166,48 @@ class LK:
         xp,yp,c = xp
         xp,yp = xp/c,yp/c 
         return (np.array([[x,y,1,0,0,0,-x*xp,-y*xp],[0,0,0,x,y,1,-x*yp,-y*yp]])/c).transpose((2,3,0,1))
+def lk_tracker(dir,outfile):
+    inp_path = os.path.join(dir,'img')
+    gt = np.genfromtxt(os.path.join(dir,'groundtruth_rect.txt'), delimiter=',')
+    gt = np.int32(gt)
+    box = gt[0]
+    gt = gt[1:]
+    files = sorted(os.listdir(inp_path))
+    files = files[1:]
+    template = cv.imread(os.path.join(inp_path,files[0]))
+    template = cv.cvtColor(template, cv.COLOR_BGR2GRAY)
+    output = []
+    sIOU,n = 0.,0.
+    tracker = LK(template,box)
+    for file in files:
+        if file[-4:] in ['.jpg']:
+            frame = cv.imread(os.path.join(inp_path,file))
+            frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+            if frame is None: break             
+            frame_no = int(re.search(r'[0-9]+',file)[0])
 
+
+
+            box_t = trackker.fit(frame)
+            output.append(box_t)
+
+            ''' Score '''
+            sIOU += IOU(box_t,box)
+            n+=1.
+            
+            frame = cv.rectangle(frame,(box_t[1],box_t[0]) ,(box_t[1]+box_t[3],box_t[2]+box_t[0]) , (255,0,0), 2)
+            frame = cv.rectangle(frame,(gt[frame_no-2,1],gt[frame_no-2,0]) ,(gt[frame_no-2,1]+gt[frame_no-2,3],gt[frame_no-2,2]+gt[frame_no-2,0]) , (0,255,0), 2)
+            cv.imshow('Image',frame)
+            if cv.waitKey(60) & 0xFF == ord('q'):
+                break
+            
+
+    
+    numpy.savetxt(outfile, np.array(output), delimiter=",")
+    print('mIOU score: '+ str(sIOU/n*100))
+
+
+    
 delp = [0.5*1e-2]*8
 n_p = [5]*8
 block_based('./A2/BlurCar2',np.eye(3),delp,n_p,'./A2/BlurCar2/outfile')
