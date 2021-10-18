@@ -89,7 +89,7 @@ def block_based(dir,p_0,delp,n_p,outfile,metric = NSSE):
             homo.select(dp)
             box_t = homo.get_box(box)
             output.append(box_t)
-            
+
             ''' Score '''
             sIOU += IOU(box_t,box)
             n+=1.
@@ -119,7 +119,7 @@ class LK:
     def fit(self,img):
         self.img = img
         while(np.linalg.norm(dp)>self.tol):
-            t1 = np.matmul(self.del_I(),self.del_w()) 
+            t1 = np.matmul(self.del_I(),self.del_W()) 
             H  = np.einsum('ijkl,ijkm->lm',t1,t1)
             Iw = self.geometry.transform(img,self.box)
             dp = np.linalg.inv(H).dot(np.einsum('ijkl,ij->lk',t1,self.template-Iw))
