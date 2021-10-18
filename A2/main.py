@@ -188,7 +188,7 @@ def lk_tracker(dir,outfile):
 
 
 
-            box_t = trackker.fit(frame)
+            box_t = tracker.fit(frame)
             output.append(box_t)
 
             ''' Score '''
@@ -207,7 +207,7 @@ def lk_tracker(dir,outfile):
     print('mIOU score: '+ str(sIOU/n*100))
 
 
-    
+
 delp = [0.5*1e-2]*8
 n_p = [5]*8
 block_based('./A2/BlurCar2',np.eye(3),delp,n_p,'./A2/BlurCar2/outfile')
