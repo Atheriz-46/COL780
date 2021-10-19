@@ -24,20 +24,20 @@ class Projective(Transformation):
         dp.resize((3,3),refcheck=False)
         def func(x_,y_):
             res=(p+dp)@np.array([x_,y_,1])
-            res = res/res[2]
-            return b(res[1],res[0])
+            x_,y_,_ = res/res[2]
+            return b(x_,y_)
         Iw = np.zeros((h+1,w+1))
         for j in range(h+1):
             for i in range(w+1):
-                Iw[j,i] = func(y+j,x+i)
+                Iw[j,i] = func(x+i,y+j)
         return Iw
     def get_box(self,box):
         x,y,w,h = box
-        coords = np.array([[y,x,1],[y,x+w,1],[y+h,x+w,1],[y+h,x,1]])@self.H.T
+        coords = np.array([[x,y,1],[x+w,y,1],[x+w,y+h,1],[x,y+h,1]])@self.H.T
         coords = coords/coords[:,-1:]
-        y,x,_ = np.min(coords,axis=0)       
-        h,w,_ = np.max(coords,axis=0)      
-        return [math.floor(y),math.floor(x),math.ceil(y-h),math.ceil(x-w)] 
+        x,y,_ = np.min(coords,axis=0)       
+        w,h,_ = np.max(coords,axis=0)      
+        return [math.floor(x),math.floor(y),math.ceil(w-x),math.ceil(h-y)] 
     def select(self,dp):
         # print(dp)
         dp.resize((3,3),refcheck=False)
@@ -46,10 +46,12 @@ class Projective(Transformation):
 
 def bilinear_interpolate(img):
     def image(x,y):
-        if y>=img.shape[1]-1 or y<0 or x>=img.shape[0]-1 or x<0:
+
+        if y>=img.shape[0]-1 or y<0 or x>=img.shape[1]-1 or x<0:
+            print(x,y)
             raise IndexError
-        i,j = int(x),int(y)
-        a,b = x-i,y-j
+        j,i = int(x),int(y)
+        b,a = x-i,y-j
         return (1-a)*((1-b)*img[i,j]+b*img[i,j+1]) + a*((1-b)*img[i+1,j]+b*img[i+1,j+1])
     return image
 
@@ -96,6 +98,7 @@ def block_based(dir,p_0,delp,n_p,outfile,metric = NSSE):
         if file[-4:] in ['.jpg']:
             frame = cv.imread(os.path.join(inp_path,file))
             frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+            
             if frame is None: break             
             frame_no = int(re.search(r'[0-9]+',file)[0])
    #################
@@ -135,7 +138,7 @@ def block_based(dir,p_0,delp,n_p,outfile,metric = NSSE):
 
 '''Needs lots of work'''
 class LK:
-    def __init__(self,template,box ,p = np.eye(3),tol = 1e-5):
+    def __init__(self,template,box ,p = np.eye(3),tol = 0.05):
         self.geometry = Projective(p)
         self.template_img = template
         self.box = box
@@ -149,16 +152,26 @@ class LK:
         Iw = self.geometry.transform(img,self.box)
         t1 = np.matmul(self.del_I(Iw),self.del_W()) 
         H  = np.einsum('ijkl,ijkm->lm',t1,t1)
-        dp = np.linalg.inv(H).dot(np.einsum('ijkl,ij->lk',t1,self.template-Iw))
+        try:
+            dp = np.linalg.inv(H).dot(np.einsum('ijkl,ij->lk',t1,self.template-Iw))
+        except ValueError:
+            # print(np.linalg.inv(H))
+            print(t1.shape,self.template.shape,Iw.shape)
         while(np.linalg.norm(dp)>self.tol):
+            print(np.linalg.norm(dp))
             Iw = self.geometry.transform(img,self.box)
             t1 = np.matmul(self.del_I(Iw),self.del_W()) 
             H  = np.einsum('ijkl,ijkm->lm',t1,t1)
-            dp = np.linalg.inv(H).dot(np.einsum('ijkl,ij->lk',t1,self.template-Iw))
-            print(self.p)
+            try:
+                dp = np.linalg.inv(H).dot(np.einsum('ijkl,ij->lk',t1,self.template-Iw))
+            except ValueError:
+                print(np.linalg.inv(H))
+                print(np.einsum('ijkl,ij->lk',t1,self.template-Iw))
+            # print(self.p)
             dp.resize((3,3),refcheck=False)
-            self.p=self.p + dp
+            self.p=self.p + 2*dp
             self.geometry.select(dp)
+        print('-'*20)
         return self.geometry.get_box(self.box)
     def del_I(self,Iw):
         '''h x w x 1 x 2'''
@@ -198,6 +211,8 @@ def lk_tracker(dir,outfile):
     files = files[1:]
     template = cv.imread(os.path.join(inp_path,files[0]))
     template = cv.cvtColor(template, cv.COLOR_BGR2GRAY)
+    # print(template.shape)
+    # return
     output = []
     sIOU,n = 0.,0.
     tracker = LK(template,box)
@@ -233,9 +248,9 @@ def lk_tracker(dir,outfile):
 delp = [0.5*1e2]*8
 n_p = [5]*8
 # block_based('./A2/BlurCar2',np.eye(3),delp,n_p,'./A2/BlurCar2/outfile')
-block_based('.\A2\data\BlurCar2',np.eye(3),delp,n_p,'.\A2\data\BlurCar2\outfile')
+# block_based('.\A2\data\BlurCar2',np.eye(3),delp,n_p,'.\A2\data\BlurCar2\outfile')
 
 
-# lk_tracker('.\A2\data\BlurCar2','.\A2\data\BlurCar2\outfile')
+lk_tracker('.\A2\data\BlurCar2','.\A2\data\BlurCar2\outfile')
 # def LK():
     # pass
