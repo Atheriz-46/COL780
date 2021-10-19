@@ -21,7 +21,9 @@ class Projective(Transformation):
         # y,x,h,w = box
         p = self.H 
         b = bilinear_interpolate(img)
+        dp =dp.copy()
         dp.resize((3,3),refcheck=False)
+        
         def func(x_,y_):
             res=(p+dp)@np.array([x_,y_,1])
             x_,y_,_ = res/res[2]
@@ -33,14 +35,24 @@ class Projective(Transformation):
         return Iw
     def get_box(self,box):
         x,y,w,h = box
-        coords = np.array([[x,y,1],[x+w,y,1],[x+w,y+h,1],[x,y+h,1]])@self.H.T
+        coords = (self.H @ np.array([[x,y,1],[x+w,y,1],[x+w,y+h,1],[x,y+h,1]]).T).T
+        print(coords)
+        print(self.H)
         coords = coords/coords[:,-1:]
-        x,y,_ = np.min(coords,axis=0)       
-        w,h,_ = np.max(coords,axis=0)      
-        return [math.floor(x),math.floor(y),math.ceil(w-x),math.ceil(h-y)] 
+        # print(np.min(coords,axis=0))
+        x_,y_,_ = np.min(coords,axis=0)       
+        w_,h_,_ = np.max(coords,axis=0)      
+        ans = [math.floor(x_),math.floor(y_),math.ceil(w_-x_+1),math.ceil(h_-y_+1)]
+        print(box)
+        print(ans)
+        print()
+        return ans 
     def select(self,dp):
         # print(dp)
+        # print(dp)
+        dp =dp.copy()
         dp.resize((3,3),refcheck=False)
+        # print(dp)
         self.H += dp
 
 
@@ -48,7 +60,7 @@ def bilinear_interpolate(img):
     def image(x,y):
 
         if y>=img.shape[0]-1 or y<0 or x>=img.shape[1]-1 or x<0:
-            print(x,y)
+            # print(x,y)
             raise IndexError
         j,i = int(x),int(y)
         b,a = x-i,y-j
@@ -61,7 +73,8 @@ def NCC(t,f):
     return np.sum(f*t)/np.std(f)
 
 def IOU(box1,box2):
-    boxA,boxB = box1,box2
+    boxA,boxB = box1.copy(),box2.copy()
+    # print(boxA,boxB)
     boxA[2:]+=boxA[:2]
     boxB[2:]+=boxB[:2]
     xA = max(boxA[0],boxB[0])
@@ -76,7 +89,7 @@ def IOU(box1,box2):
 
 def block_based(dir,p_0,delp,n_p,outfile,metric = NSSE):
     sample = [np.linspace(-dp,dp,n) for dp,n in zip(delp,n_p)]
-    sample = np.stack(np.meshgrid(*sample)).reshape((-1,8))
+    sample = np.stack(np.meshgrid(*sample)).reshape((-1,len(delp)))
 
     # print(sample.shape,len(sample))
     # return
@@ -102,8 +115,8 @@ def block_based(dir,p_0,delp,n_p,outfile,metric = NSSE):
             if frame is None: break             
             frame_no = int(re.search(r'[0-9]+',file)[0])
    #################
-            max_,best_p=None, None
-            print('lol')
+            max_,best_p=None, np.zeros(6)
+            # print('lol')
             for dp in sample:
                 # print(dp.shape)
                 try:
@@ -112,19 +125,21 @@ def block_based(dir,p_0,delp,n_p,outfile,metric = NSSE):
                     if(not max_ or k>max_): 
                         best_p = dp
                         max_ = k 
-                except:
-                    # print('lda')
+                    # print('good')
+                except IndexError:
+                    # print('bad')
 
                     continue
             homo.select(best_p)
             box_t = homo.get_box(box)
+            # print(box_t,best_p)
             output.append(box_t)
 
             ''' Score '''
             sIOU += IOU(box_t,box)
             n+=1.
             
-            frame = cv.rectangle(frame,(box_t[1],box_t[0]) ,(box_t[1]+box_t[3],box_t[2]+box_t[0]) , (255,0,0), 2)
+            frame = cv.rectangle(frame,(box_t[1],box_t[0]) ,(box_t[1]+box_t[3],box_t[2]+box_t[0]) , (255,0,0), 5)
             frame = cv.rectangle(frame,(gt[frame_no-2,1],gt[frame_no-2,0]) ,(gt[frame_no-2,1]+gt[frame_no-2,3],gt[frame_no-2,2]+gt[frame_no-2,0]) , (0,255,0), 2)
             cv.imshow('Image',frame)
             if cv.waitKey(60) & 0xFF == ord('q'):
@@ -132,17 +147,18 @@ def block_based(dir,p_0,delp,n_p,outfile,metric = NSSE):
             
 
     
-    numpy.savetxt(outfile, np.array(output), delimiter=",")
+    np.savetxt(outfile, np.array(output), delimiter=",",fmt = "%d")
     print('mIOU score: '+ str(sIOU/n*100))
 
 
 '''Needs lots of work'''
 class LK:
-    def __init__(self,template,box ,p = np.eye(3),tol = 0.05):
+    def __init__(self,template,box ,p = np.eye(3),tol = 0.1):
         self.geometry = Projective(p)
         self.template_img = template
         self.box = box
         self.template =  template[box[1]:box[1]+box[3]+1,box[0]:box[0]+box[2]+1]
+        # print(self.template.shape,box)
         self.p = p
         self.tol = tol
 
@@ -152,24 +168,23 @@ class LK:
         Iw = self.geometry.transform(img,self.box)
         t1 = np.matmul(self.del_I(Iw),self.del_W()) 
         H  = np.einsum('ijkl,ijkm->lm',t1,t1)
-        try:
-            dp = np.linalg.inv(H).dot(np.einsum('ijkl,ij->lk',t1,self.template-Iw))
-        except ValueError:
-            # print(np.linalg.inv(H))
-            print(t1.shape,self.template.shape,Iw.shape)
+        dp = np.linalg.inv(H).dot(np.einsum('ijkl,ij->lk',t1,self.template-Iw))
+        dp.resize((3,3),refcheck=False)
+        self.p=self.p + dp
+        self.geometry.select(dp)
         while(np.linalg.norm(dp)>self.tol):
-            print(np.linalg.norm(dp))
+            # print(np.linalg.norm(dp))
             Iw = self.geometry.transform(img,self.box)
             t1 = np.matmul(self.del_I(Iw),self.del_W()) 
             H  = np.einsum('ijkl,ijkm->lm',t1,t1)
-            try:
-                dp = np.linalg.inv(H).dot(np.einsum('ijkl,ij->lk',t1,self.template-Iw))
-            except ValueError:
-                print(np.linalg.inv(H))
-                print(np.einsum('ijkl,ij->lk',t1,self.template-Iw))
+            
+            dp = np.linalg.inv(H).dot(np.einsum('ijkl,ij->lk',t1,self.template-Iw))
+            # except ValueError:
+            #     print(np.linalg.inv(H))
+            #     print(np.einsum('ijkl,ij->lk',t1,self.template-Iw))
             # print(self.p)
             dp.resize((3,3),refcheck=False)
-            self.p=self.p + 2*dp
+            self.p=self.p + dp
             self.geometry.select(dp)
         print('-'*20)
         return self.geometry.get_box(self.box)
@@ -205,7 +220,8 @@ def lk_tracker(dir,outfile):
     inp_path = os.path.join(dir,'img')
     gt = np.genfromtxt(os.path.join(dir,'groundtruth_rect.txt'), delimiter=',')
     gt = np.int32(gt)
-    box = gt[0]
+    # box = gt[0]
+    box = [227,207,122,99]
     gt = gt[1:]
     files = sorted(os.listdir(inp_path))
     files = files[1:]
@@ -226,10 +242,12 @@ def lk_tracker(dir,outfile):
 
 
             box_t = tracker.fit(frame)
+            # print(len(box_t))
             output.append(box_t)
 
             ''' Score '''
             sIOU += IOU(box_t,box)
+            print(IOU(box_t,box))
             n+=1.
             
             frame = cv.rectangle(frame,(box_t[1],box_t[0]) ,(box_t[1]+box_t[3],box_t[2]+box_t[0]) , (255,0,0), 2)
@@ -240,13 +258,13 @@ def lk_tracker(dir,outfile):
             
 
     
-    numpy.savetxt(outfile, np.array(output), delimiter=",")
+    np.savetxt(outfile, np.array(output), delimiter=",",fmt='%d')
     print('mIOU score: '+ str(sIOU/n*100))
 
 
 
-delp = [0.5*1e2]*8
-n_p = [5]*8
+delp = [0,0,60,0,0,60]
+n_p = [1,1,3,1,1,3]
 # block_based('./A2/BlurCar2',np.eye(3),delp,n_p,'./A2/BlurCar2/outfile')
 # block_based('.\A2\data\BlurCar2',np.eye(3),delp,n_p,'.\A2\data\BlurCar2\outfile')
 
