@@ -36,16 +36,16 @@ class Projective(Transformation):
     def get_box(self,box):
         x,y,w,h = box
         coords = (self.H @ np.array([[x,y,1],[x+w,y,1],[x+w,y+h,1],[x,y+h,1]]).T).T
-        print(coords)
-        print(self.H)
-        coords = coords/coords[:,-1:]
+        # print(coords)
+        # print(self.H)
+        # coords = coords/coords[:,-1:]
         # print(np.min(coords,axis=0))
         x_,y_,_ = np.min(coords,axis=0)       
         w_,h_,_ = np.max(coords,axis=0)      
         ans = [math.floor(x_),math.floor(y_),math.ceil(w_-x_+1),math.ceil(h_-y_+1)]
-        print(box)
-        print(ans)
-        print()
+        # print(box)
+        # print(ans)
+        # print()
         return ans 
     def select(self,dp):
         # print(dp)
@@ -60,11 +60,11 @@ def bilinear_interpolate(img):
     def image(x,y):
 
         if y>=img.shape[0]-1 or y<0 or x>=img.shape[1]-1 or x<0:
-            # print(x,y)
+            print(x,y)
             raise IndexError
-        j,i = int(x),int(y)
-        b,a = x-i,y-j
-        return (1-a)*((1-b)*img[i,j]+b*img[i,j+1]) + a*((1-b)*img[i+1,j]+b*img[i+1,j+1])
+        i,j = math.floor(x),math.floor(y)
+        a,b = x-i,y-j
+        return (1-a)*((1-b)*img[j,i]+b*img[j+1,i]) + a*((1-b)*img[j,i+1]+b*img[j+1,i+1])
     return image
 
 def NSSE(t,f):
@@ -153,7 +153,7 @@ def block_based(dir,p_0,delp,n_p,outfile,metric = NSSE):
 
 '''Needs lots of work'''
 class LK:
-    def __init__(self,template,box ,p = np.eye(3),tol = 0.1):
+    def __init__(self,template,box ,p = np.eye(3),tol = 0.01):
         self.geometry = Projective(p)
         self.template_img = template
         self.box = box
@@ -168,15 +168,18 @@ class LK:
         Iw = self.geometry.transform(img,self.box)
         t1 = np.matmul(self.del_I(Iw),self.del_W()) 
         H  = np.einsum('ijkl,ijkm->lm',t1,t1)
-        dp = np.linalg.inv(H).dot(np.einsum('ijkl,ij->lk',t1,self.template-Iw))
+        term = np.einsum('ijkl,ij->lk',t1,self.template-Iw)
+        
+        dp = np.linalg.inv(H).dot(term)
         dp.resize((3,3),refcheck=False)
+        print(dp)
         self.p=self.p + dp
         self.geometry.select(dp)
         while(np.linalg.norm(dp)>self.tol):
             # print(np.linalg.norm(dp))
             Iw = self.geometry.transform(img,self.box)
             t1 = np.matmul(self.del_I(Iw),self.del_W()) 
-            print(Iw.shape,self.del_W().shape)
+            # print(Iw.shape,self.del_W().shape)
             H  = np.einsum('ijkl,ijkm->lm',t1,t1)
             
             dp = np.linalg.inv(H).dot(np.einsum('ijkl,ij->lk',t1,self.template-Iw))
@@ -225,8 +228,8 @@ def lk_tracker(dir,outfile):
     box = [227,207,122,99]
     gt = gt[1:]
     files = sorted(os.listdir(inp_path))
-    files = files[1:]
     template = cv.imread(os.path.join(inp_path,files[0]))
+    # files = files[1:]
     template = cv.cvtColor(template, cv.COLOR_BGR2GRAY)
     # print(template.shape)
     # return
@@ -251,9 +254,12 @@ def lk_tracker(dir,outfile):
             print(IOU(box_t,box))
             n+=1.
             
-            frame = cv.rectangle(frame,(box_t[1],box_t[0]) ,(box_t[1]+box_t[3],box_t[2]+box_t[0]) , (255,0,0), 2)
-            frame = cv.rectangle(frame,(gt[frame_no-2,1],gt[frame_no-2,0]) ,(gt[frame_no-2,1]+gt[frame_no-2,3],gt[frame_no-2,2]+gt[frame_no-2,0]) , (0,255,0), 2)
+            # frame = cv.rectangle(frame,(box_t[1],box_t[0]) ,(box_t[1]+box_t[3],box_t[2]+box_t[0]) , (255,0,0), 2)
+            frame = cv.rectangle(frame,(box_t[0],box_t[1]) ,(box_t[0]+box_t[2],box_t[3]+box_t[1]) , (255,0,0), 2)
+            # frame = cv.rectangle(frame,(gt[frame_no-1,1],gt[frame_no-1,0]) ,(gt[frame_no-1,1]+gt[frame_no-1,3],gt[frame_no-1,2]+gt[frame_no-1,0]) , (0,255,0), 2)
+            frame = cv.rectangle(frame,(gt[frame_no-1,0],gt[frame_no-1,1]) ,(gt[frame_no-1,0]+gt[frame_no-1,2],gt[frame_no-1,3]+gt[frame_no-1,1]) , (0,255,0), 2)
             cv.imshow('Image',frame)
+            # cv.waitKey(0)
             if cv.waitKey(60) & 0xFF == ord('q'):
                 break
             
@@ -273,3 +279,16 @@ n_p = [10,10,3,10,10,3]
 lk_tracker('.\A2\data\BlurCar2','.\A2\data\BlurCar2\outfile')
 # def LK():
     # pass
+
+# def f():
+#     t = Projective(np.eye(3))
+#     frame = cv.imread('.\A2\data\BlurCar2\img\\0001.jpg')
+#     frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+#     Iw = t.transform(frame,[0,0,300,300],np.array([-1/2,-0.2,100,.3,-1/2,10]))
+#     print(np.uint8(Iw))
+    
+
+#     cv.imshow('Image',Iw/255)
+#     cv.imshow('img',frame)
+#     cv.waitKey(0)
+# f()
