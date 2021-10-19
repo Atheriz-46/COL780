@@ -176,6 +176,7 @@ class LK:
             # print(np.linalg.norm(dp))
             Iw = self.geometry.transform(img,self.box)
             t1 = np.matmul(self.del_I(Iw),self.del_W()) 
+            print(Iw.shape,self.del_W().shape)
             H  = np.einsum('ijkl,ijkm->lm',t1,t1)
             
             dp = np.linalg.inv(H).dot(np.einsum('ijkl,ij->lk',t1,self.template-Iw))
@@ -263,8 +264,8 @@ def lk_tracker(dir,outfile):
 
 
 
-delp = [0,0,60,0,0,60]
-n_p = [1,1,3,1,1,3]
+delp = [1,1,60,1,1,60]
+n_p = [10,10,3,10,10,3]
 # block_based('./A2/BlurCar2',np.eye(3),delp,n_p,'./A2/BlurCar2/outfile')
 # block_based('.\A2\data\BlurCar2',np.eye(3),delp,n_p,'.\A2\data\BlurCar2\outfile')
 
