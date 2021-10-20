@@ -14,31 +14,38 @@ class Transformation:
         pass
 
 class Projective(Transformation):
-    def __init__(self,p):
+    def __init__(self,p = np.eye(3)):
         self.H = p 
-    def transform(self,img,box,dp=np.zeros((3,3))):
+        # self.H = p 
+    def transform(self,p,img,box):
         x,y,w,h = box
         # y,x,h,w = box
-        p = self.H 
+        # p = self.H 
         b = bilinear_interpolate(img)
-        dp =dp.copy()
-        dp.resize((3,3),refcheck=False)
-        
+        # dp =dp.copy()
+        # dp.resize((3,3),refcheck=False)
+        print(box)
         def func(x_,y_):
-            res=(p+dp)@np.array([x_,y_,1])
-            x_,y_,_ = res/res[2]
-            return b(x_,y_)
+            res=p@np.array([x_,y_,1])
+            # print(x_,y_)
+            xp,yp,_ = res/res[2]
+            # print(x_,y_)
+            # print()
+            return b(xp,yp)
+        
         Iw = np.zeros((h+1,w+1))
         for j in range(h+1):
             for i in range(w+1):
                 Iw[j,i] = func(x+i,y+j)
+            # print(i)
+        # print(x,y)
         return Iw
     def get_box(self,box):
         x,y,w,h = box
         coords = (self.H @ np.array([[x,y,1],[x+w,y,1],[x+w,y+h,1],[x,y+h,1]]).T).T
         # print(coords)
         # print(self.H)
-        # coords = coords/coords[:,-1:]
+        coords = coords/coords[:,-1:]
         # print(np.min(coords,axis=0))
         x_,y_,_ = np.min(coords,axis=0)       
         w_,h_,_ = np.max(coords,axis=0)      
@@ -53,38 +60,43 @@ class Projective(Transformation):
         dp =dp.copy()
         dp.resize((3,3),refcheck=False)
         # print(dp)
-        self.H += dp
+        self.H = dp
 
 
 def bilinear_interpolate(img):
     def image(x,y):
 
-        if y>=img.shape[0]-1 or y<0 or x>=img.shape[1]-1 or x<0:
-            print(x,y)
-            raise IndexError
+        # if y>=img.shape[0]-1 or y<0 or x>=img.shape[1]-1 or x<0:
+        #     # print(x,y)
+        #     raise IndexError
+            # return 0
         i,j = math.floor(x),math.floor(y)
         a,b = x-i,y-j
         return (1-a)*((1-b)*img[j,i]+b*img[j+1,i]) + a*((1-b)*img[j,i+1]+b*img[j+1,i+1])
     return image
 
 def NSSE(t,f):
-    return -np.linalg.norm(f-t)**2
+    # print(1-np.linalg.norm(f-t)**2/f.size/255.**2)
+    return 1-np.linalg.norm(f-t)**2/f.size/255.**2
 def NCC(t,f):
-    return np.sum(f*t)/np.std(f)
+    # print(np.sum(f*t)/np.linalg.norm(f**2)/np.linalg.norm(t**2))#/f.size)
+    # print(np.sum(f*t),(f*t).shape,np.std(f).shape,np.std(t),f.size)
+    return np.sum(f*t)/np.linalg.norm(f**2)/np.linalg.norm(t**2)#/f.size
 
 def IOU(box1,box2):
     boxA,boxB = box1.copy(),box2.copy()
     # print(boxA,boxB)
-    boxA[2:]+=boxA[:2]
-    boxB[2:]+=boxB[:2]
+    # boxA[2:]+=boxA[:2]
+    # boxB[2:]+=boxB[:2]
     xA = max(boxA[0],boxB[0])
     yA = max(boxA[1],boxB[1])
-    xB = min(boxA[2],boxB[2])
-    yB = min(boxA[3],boxB[3])
+    xB = min(boxA[2]+boxA[0],boxB[2]+boxB[0])
+    yB = min(boxA[3]+boxA[1],boxB[3]+boxB[1])
     interArea = max(0, xB - xA + 1) * max(0, yB - yA + 1)
-    boxAArea = (boxA[2] - boxA[0] + 1) * (boxA[3] - boxA[1] + 1)
-    boxBArea = (boxB[2] - boxB[0] + 1) * (boxB[3] - boxB[1] + 1)
+    boxAArea = (boxA[2]  + 1) * (boxA[3] + 1)
+    boxBArea = (boxB[2]  + 1) * (boxB[3] + 1)
     iou = interArea / float(boxAArea + boxBArea - interArea)
+    # print(iou,boxA,boxB)
     return iou
 
 def block_based(dir,p_0,delp,n_p,outfile,metric = NSSE):
@@ -136,11 +148,15 @@ def block_based(dir,p_0,delp,n_p,outfile,metric = NSSE):
             output.append(box_t)
 
             ''' Score '''
-            sIOU += IOU(box_t,box)
+            sIOU += IOU(box_t,gt[frame_no-1])
+            
             n+=1.
             
-            frame = cv.rectangle(frame,(box_t[1],box_t[0]) ,(box_t[1]+box_t[3],box_t[2]+box_t[0]) , (255,0,0), 5)
-            frame = cv.rectangle(frame,(gt[frame_no-2,1],gt[frame_no-2,0]) ,(gt[frame_no-2,1]+gt[frame_no-2,3],gt[frame_no-2,2]+gt[frame_no-2,0]) , (0,255,0), 2)
+            # frame = cv.rectangle(frame,(box_t[1],box_t[0]) ,(box_t[1]+box_t[3],box_t[2]+box_t[0]) , (255,0,0), 5)
+            # frame = cv.rectangle(frame,(gt[frame_no-2,1],gt[frame_no-2,0]) ,(gt[frame_no-2,1]+gt[frame_no-2,3],gt[frame_no-2,2]+gt[frame_no-2,0]) , (0,255,0), 2)
+            frame = cv.rectangle(frame,(box_t[0],box_t[1]) ,(box_t[0]+box_t[2],box_t[3]+box_t[1]) , (255,0,0), 2)
+            frame = cv.rectangle(frame,(gt[frame_no-1,0],gt[frame_no-1,1]) ,(gt[frame_no-1,0]+gt[frame_no-1,2],gt[frame_no-1,3]+gt[frame_no-1,1]) , (0,255,0), 2)
+
             cv.imshow('Image',frame)
             if cv.waitKey(60) & 0xFF == ord('q'):
                 break
@@ -153,11 +169,11 @@ def block_based(dir,p_0,delp,n_p,outfile,metric = NSSE):
 
 '''Needs lots of work'''
 class LK:
-    def __init__(self,template,box ,p = np.eye(3),tol = 0.01):
-        self.geometry = Projective(p)
+    def __init__(self, template, box, p = np.eye(3), tol = 0.84):
         self.template_img = template
         self.box = box
         self.template =  template[box[1]:box[1]+box[3]+1,box[0]:box[0]+box[2]+1]
+        cv.imshow("Template",self.template)
         # print(self.template.shape,box)
         self.p = p
         self.tol = tol
@@ -165,20 +181,28 @@ class LK:
     
     def fit(self,img):
         self.img = img
-        Iw = self.geometry.transform(img,self.box)
-        t1 = np.matmul(self.del_I(Iw),self.del_W()) 
-        H  = np.einsum('ijkl,ijkm->lm',t1,t1)
-        term = np.einsum('ijkl,ij->lk',t1,self.template-Iw)
+        self.geometry = Projective(np.eye(3))
+        err = 3000
+        # Iw = np.ones(self.template.shape)
+        # Iw[0,0] = 0
+        # dp = np.zeros(6)
+        # Iw = self.geometry.transform(img,self.box)
+        # t1 = np.matmul(self.del_I(Iw),self.del_W()) 
+        # H  = np.einsum('ijkl,ijkm->lm',t1,t1)
+        # term = np.einsum('ijkl,ij->lk',t1,self.template-Iw)
         
-        dp = np.linalg.inv(H).dot(term)
-        dp.resize((3,3),refcheck=False)
-        print(dp)
-        self.p=self.p + dp
-        self.geometry.select(dp)
-        while(np.linalg.norm(dp)>self.tol):
+        # dp = np.linalg.inv(H).dot(term)
+        # dp.resize((3,3),refcheck=False)
+        # # print(dp)
+        # self.p=self.p + dp
+        # self.geometry.select(dp)
+        # NCC(self.template,Iw)<self.tol and 
+        while(err>0.7):
             # print(np.linalg.norm(dp))
-            Iw = self.geometry.transform(img,self.box)
-            t1 = np.matmul(self.del_I(Iw),self.del_W()) 
+            Iw = self.geometry.transform(self.p,img,self.box)
+            t1 = np.matmul(self.del_I(img),self.del_W())
+            print(self.p)
+
             # print(Iw.shape,self.del_W().shape)
             H  = np.einsum('ijkl,ijkm->lm',t1,t1)
             
@@ -188,9 +212,12 @@ class LK:
             #     print(np.einsum('ijkl,ij->lk',t1,self.template-Iw))
             # print(self.p)
             dp.resize((3,3),refcheck=False)
-            self.p=self.p + dp
-            self.geometry.select(dp)
+            self.p=self.p + 5e-1*dp
+            self.geometry.select(self.p)
+            err = np.linalg.norm(dp)
+            break
         print('-'*20)
+        print(self.box)
         return self.geometry.get_box(self.box)
     def del_I(self,Iw):
         '''h x w x 1 x 2'''
@@ -198,15 +225,40 @@ class LK:
                     [-2,0,2],
                     [-1,0,1]])
     
-        I = np.array([[cv.filter2D(Iw, -1, dx, borderType=cv.BORDER_CONSTANT),
-            cv.filter2D(Iw, -1, dx.T, borderType=cv.BORDER_CONSTANT)]])
+        # I = np.array([[]])
+        # return I.transpose((2,3,0,1))
+        Ix,Iy = cv.filter2D(Iw, -1, dx, borderType=cv.BORDER_CONSTANT), cv.filter2D(Iw, -1, dx.T, borderType=cv.BORDER_CONSTANT)
+        # print(Ix.shape,Iy.shape,Iw.shape)
+        # cv.imshow('Ix',Ix)
+        # cv.waitKey(0)
+        Ix = self.geometry.transform(self.p,Ix,self.box)
+        Iy = self.geometry.transform(self.p,Iy,self.box)
+        I = np.array([[Ix,Iy]])
+        # print(I.shape)
+        # exit()
+
         return I.transpose((2,3,0,1))
+
     def del_W(self):
         x = np.arange(self.box[0],self.box[0]+self.box[2]+1)
         y = np.arange(self.box[1],self.box[1]+self.box[3]+1)
         xx,yy = np.meshgrid(x,y)
         
-        return self.Wp_affine(xx,yy)
+        return self.Wp_translation(xx,yy)
+        # return self.Wp_affine(xx,yy)
+
+    def Wp_translation(self,x,y):
+        shape = x.shape
+        # print(x.shape)
+        # print(np.stack((np.ones(shape),np.zeros(shape))).shape)
+        # k = np.stack((np.stack((x,np.zeros(shape),y,np.zeros(shape),np.ones(shape),np.zeros(shape))),
+                    # np.stack((np.zeros(shape),x,np.zeros(shape),y,np.zeros(shape),np.ones(shape)))))
+        k = np.stack((np.stack((np.ones(shape),np.zeros(shape))),
+                    np.stack((np.zeros(shape),np.ones(shape)))))
+        # k = np.eye(3)
+                    # np.stack((np.zeros(shape),x,n)
+        # print(k.shape,x.shape,y.shape)
+        return k.transpose((2,3,0,1))
     def Wp_affine(self,x,y):
         shape = x.shape
         k = np.stack((np.stack((x,np.zeros(shape),y,np.zeros(shape),np.ones(shape),np.zeros(shape))),
@@ -227,6 +279,7 @@ def lk_tracker(dir,outfile):
     # box = gt[0]
     box = [227,207,122,99]
     gt = gt[1:]
+    print(gt.shape)
     files = sorted(os.listdir(inp_path))
     template = cv.imread(os.path.join(inp_path,files[0]))
     # files = files[1:]
@@ -250,8 +303,8 @@ def lk_tracker(dir,outfile):
             output.append(box_t)
 
             ''' Score '''
-            sIOU += IOU(box_t,box)
-            print(IOU(box_t,box))
+
+            sIOU += IOU(box_t,gt[frame_no-1])
             n+=1.
             
             # frame = cv.rectangle(frame,(box_t[1],box_t[0]) ,(box_t[1]+box_t[3],box_t[2]+box_t[0]) , (255,0,0), 2)
@@ -266,7 +319,7 @@ def lk_tracker(dir,outfile):
 
     
     np.savetxt(outfile, np.array(output), delimiter=",",fmt='%d')
-    print('mIOU score: '+ str(sIOU/n*100))
+    print('mIOU score: {0:.4f}'.format(sIOU/n))
 
 
 
@@ -280,15 +333,16 @@ lk_tracker('.\A2\data\BlurCar2','.\A2\data\BlurCar2\outfile')
 # def LK():
     # pass
 
-# def f():
-#     t = Projective(np.eye(3))
-#     frame = cv.imread('.\A2\data\BlurCar2\img\\0001.jpg')
-#     frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
-#     Iw = t.transform(frame,[0,0,300,300],np.array([-1/2,-0.2,100,.3,-1/2,10]))
-#     print(np.uint8(Iw))
+def f():
+    t = Projective(np.eye(3))
+    frame = cv.imread('.\A2\data\BlurCar2\img\\0001.jpg')
+    frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+    Iw = t.transform(frame,[0,0,300,300],np.array([-1/2,-0.2,100,.3,-1/2,10]))
+    # print(np.uint8(Iw))
     
 
-#     cv.imshow('Image',Iw/255)
-#     cv.imshow('img',frame)
-#     cv.waitKey(0)
+    # cv.imshow('Image',Iw/255)
+    # cv.imshow('img',frame)
+    # cv.waitKey(0)
+    print(NCC(Iw,Iw))
 # f()
