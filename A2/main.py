@@ -66,9 +66,9 @@ class Projective(Transformation):
 def bilinear_interpolate(img):
     def image(x,y):
 
-        # if y>=img.shape[0]-1 or y<0 or x>=img.shape[1]-1 or x<0:
-        #     # print(x,y)
-        #     raise IndexError
+        if y>=img.shape[0]-1 or y<0 or x>=img.shape[1]-1 or x<0:
+            # print(x,y)
+            raise IndexError
             # return 0
         i,j = math.floor(x),math.floor(y)
         a,b = x-i,y-j
@@ -99,7 +99,9 @@ def IOU(box1,box2):
     # print(iou,boxA,boxB)
     return iou
 
-def block_based(dir,p_0,delp,n_p,outfile,metric = NSSE):
+
+
+def block_based(dir,p_0,delp,n_p,outfile,metric = NSSE,interactive = []):
     sample = [np.linspace(-dp,dp,n) for dp,n in zip(delp,n_p)]
     sample = np.stack(np.meshgrid(*sample)).reshape((-1,len(delp)))
 
@@ -108,13 +110,16 @@ def block_based(dir,p_0,delp,n_p,outfile,metric = NSSE):
     inp_path = os.path.join(dir,'img')
     gt = np.genfromtxt(os.path.join(dir,'groundtruth_rect.txt'), delimiter=',')
     gt = np.int32(gt)
-    box = gt[0]
-    gt = gt[1:]
+    
+    # gt = gt[1:]
     files = sorted(os.listdir(inp_path))
     files = files[1:]
     template = cv.imread(os.path.join(inp_path,files[0]))
-    template = cv.cvtColor(template, cv.COLOR_BGR2GRAY)
-    # 
+    template = cv.cvtColor(template,cv.COLOR_BGR2GRAY)
+    if interactive:
+        box = interactive
+    else:
+        box = gt[0]
     template_cut = template[box[1]:box[1]+box[3]+1,box[0]:box[0]+box[2]+1]
     homo = Projective(p_0)
     output = []
@@ -127,23 +132,10 @@ def block_based(dir,p_0,delp,n_p,outfile,metric = NSSE):
             if frame is None: break             
             frame_no = int(re.search(r'[0-9]+',file)[0])
    #################
-            max_,best_p=None, np.zeros(6)
-            # print('lol')
-            for dp in sample:
-                # print(dp.shape)
-                try:
-                    Iw = homo.transform(frame,box,dp)
-                    k = metric(template_cut,Iw)
-                    if(not max_ or k>max_): 
-                        best_p = dp
-                        max_ = k 
-                    # print('good')
-                except IndexError:
-                    # print('bad')
+            mat = cv.matchTemplate(frame,template_cut,cv.TM_CCORR_NORMED)
 
-                    continue
-            homo.select(best_p)
-            box_t = homo.get_box(box)
+            x,y = cv.minMaxLoc(mat)[3]
+            box_t = [x,y,box[2],box[3]]
             # print(box_t,best_p)
             output.append(box_t)
 
@@ -155,7 +147,8 @@ def block_based(dir,p_0,delp,n_p,outfile,metric = NSSE):
             # frame = cv.rectangle(frame,(box_t[1],box_t[0]) ,(box_t[1]+box_t[3],box_t[2]+box_t[0]) , (255,0,0), 5)
             # frame = cv.rectangle(frame,(gt[frame_no-2,1],gt[frame_no-2,0]) ,(gt[frame_no-2,1]+gt[frame_no-2,3],gt[frame_no-2,2]+gt[frame_no-2,0]) , (0,255,0), 2)
             frame = cv.rectangle(frame,(box_t[0],box_t[1]) ,(box_t[0]+box_t[2],box_t[3]+box_t[1]) , (255,0,0), 2)
-            frame = cv.rectangle(frame,(gt[frame_no-1,0],gt[frame_no-1,1]) ,(gt[frame_no-1,0]+gt[frame_no-1,2],gt[frame_no-1,3]+gt[frame_no-1,1]) , (0,255,0), 2)
+            if not interactive:
+                frame = cv.rectangle(frame,(gt[frame_no-1,0],gt[frame_no-1,1]) ,(gt[frame_no-1,0]+gt[frame_no-1,2],gt[frame_no-1,3]+gt[frame_no-1,1]) , (0,255,0), 2)
 
             cv.imshow('Image',frame)
             if cv.waitKey(60) & 0xFF == ord('q'):
@@ -164,7 +157,8 @@ def block_based(dir,p_0,delp,n_p,outfile,metric = NSSE):
 
     
     np.savetxt(outfile, np.array(output), delimiter=",",fmt = "%d")
-    print('mIOU score: '+ str(sIOU/n*100))
+    if not interactive:
+        print('mIOU score: '+ str(sIOU/n*100))
 
 
 '''Needs lots of work'''
@@ -183,6 +177,8 @@ class LK:
         self.img = img
         self.geometry = Projective(np.eye(3))
         err = 3000
+        self.p = np.eye(3)
+        # self.p = np.eye(3)
         # Iw = np.ones(self.template.shape)
         # Iw[0,0] = 0
         # dp = np.zeros(6)
@@ -198,24 +194,46 @@ class LK:
         # self.geometry.select(dp)
         # NCC(self.template,Iw)<self.tol and 
         while(err>0.7):
+            
             # print(np.linalg.norm(dp))
-            Iw = self.geometry.transform(self.p,img,self.box)
-            t1 = np.matmul(self.del_I(img),self.del_W())
-            print(self.p)
+            try:
+                Iw = self.geometry.transform(self.p,img,self.box)
+            # print(img.type())
+            # rotated_image = cv.warpAffine(src=img, M=self.p, dsize=img.shape)
+            # box = self.box
+            # Iw = rotated_image[box[1]:box[1]+box[3]+1,box[0]:box[0]+box[2]+1]
+            # cv.imshow('Iw',Iw/255)
+            # cv.waitKey(0)
+
+                t1 = np.matmul(self.del_I(img),self.del_W())
+            # print(self.p)
 
             # print(Iw.shape,self.del_W().shape)
-            H  = np.einsum('ijkl,ijkm->lm',t1,t1)
+                '''
+                H  = np.einsum('ijkl,ijkm->lm',t1,t1)
+                
+                dp = np.linalg.inv(H).dot(np.einsum('ijkl,ij->lk',t1,self.template-Iw))
+                '''
+            # print(t1.shape,np.linalg.pinv(t1).shape,(self.template-Iw).shape)
+                dp = np.einsum('ijkl,ij->lk',np.linalg.pinv(t1),self.template-Iw)
             
-            dp = np.linalg.inv(H).dot(np.einsum('ijkl,ij->lk',t1,self.template-Iw))
+            # exit()
             # except ValueError:
             #     print(np.linalg.inv(H))
             #     print(np.einsum('ijkl,ij->lk',t1,self.template-Iw))
-            # print(self.p)
-            dp.resize((3,3),refcheck=False)
-            self.p=self.p + 5e-1*dp
+                print(dp)
+                dp.resize((3,3),refcheck=False)
+                self.p=self.p + dp
+                print(self.p)
+                err = np.linalg.norm(dp)
+                print(err)
+
+            except IndexError:
+                err = 0
+                
+                
             self.geometry.select(self.p)
-            err = np.linalg.norm(dp)
-            break
+            
         print('-'*20)
         print(self.box)
         return self.geometry.get_box(self.box)
@@ -244,8 +262,10 @@ class LK:
         y = np.arange(self.box[1],self.box[1]+self.box[3]+1)
         xx,yy = np.meshgrid(x,y)
         
-        return self.Wp_translation(xx,yy)
-        # return self.Wp_affine(xx,yy)
+        # return self.Wp_translation(xx,yy)
+        return self.Wp_affine(xx,yy)
+
+
 
     def Wp_translation(self,x,y):
         shape = x.shape
@@ -278,7 +298,7 @@ def lk_tracker(dir,outfile):
     gt = np.int32(gt)
     # box = gt[0]
     box = [227,207,122,99]
-    gt = gt[1:]
+    # gt = gt[1:]
     print(gt.shape)
     files = sorted(os.listdir(inp_path))
     template = cv.imread(os.path.join(inp_path,files[0]))
@@ -299,7 +319,7 @@ def lk_tracker(dir,outfile):
 
 
             box_t = tracker.fit(frame)
-            # print(len(box_t))
+            print(box_t)
             output.append(box_t)
 
             ''' Score '''
@@ -326,23 +346,6 @@ def lk_tracker(dir,outfile):
 delp = [1,1,60,1,1,60]
 n_p = [10,10,3,10,10,3]
 # block_based('./A2/BlurCar2',np.eye(3),delp,n_p,'./A2/BlurCar2/outfile')
-# block_based('.\A2\data\BlurCar2',np.eye(3),delp,n_p,'.\A2\data\BlurCar2\outfile')
+block_based('.\A2\data\BlurCar2',np.eye(3),delp,n_p,'.\A2\data\BlurCar2\outfile')#,interactive = [0,0,100,100])
 
 
-lk_tracker('.\A2\data\BlurCar2','.\A2\data\BlurCar2\outfile')
-# def LK():
-    # pass
-
-def f():
-    t = Projective(np.eye(3))
-    frame = cv.imread('.\A2\data\BlurCar2\img\\0001.jpg')
-    frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
-    Iw = t.transform(frame,[0,0,300,300],np.array([-1/2,-0.2,100,.3,-1/2,10]))
-    # print(np.uint8(Iw))
-    
-
-    # cv.imshow('Image',Iw/255)
-    # cv.imshow('img',frame)
-    # cv.waitKey(0)
-    print(NCC(Iw,Iw))
-# f()
