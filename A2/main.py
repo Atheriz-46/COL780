@@ -296,8 +296,8 @@ def lk_tracker(dir,outfile):
     inp_path = os.path.join(dir,'img')
     gt = np.genfromtxt(os.path.join(dir,'groundtruth_rect.txt'), delimiter=',')
     gt = np.int32(gt)
-    # box = gt[0]
-    box = [227,207,122,99]
+    box = gt[0]
+    # box = [227,207,122,99]
     # gt = gt[1:]
     print(gt.shape)
     files = sorted(os.listdir(inp_path))
