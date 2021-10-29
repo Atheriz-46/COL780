@@ -4,8 +4,9 @@ import os
 from imutils.object_detection import non_max_suppression
 from imutils import paths
 import imutils
-import skimage
-import sklearn
+# import skimage
+# import sklearn
+import re
 def HOG_Predefined(inp_path = 'A3\data\PNGImages',padding=(8, 8),winStride=(4, 4),scale=1.05,probs=None, overlapThresh=0.65,wid=400):
     
     hog = cv.HOGDescriptor()
@@ -72,3 +73,22 @@ def preprocess(images):
         arr+= [skimage.feature.hog(image,orientations = 9,block_norm='L2-Hys',feature_vector=True,transform_sqrt=True,channel_axis = 2)]
     return np.array(arr)
 
+
+def PASCAL_1_to_coco(path):
+    
+    with open(path,'r+') as file:
+        lines = file.read()
+        Image_filename = re.findall('\/([^\/_]+)\.png',lines)[0]
+        print(Image_filename)
+        # Image_filename = lines[1].split(':')[1].strip().split('/')[-1][:-5]
+        data = []
+        boxes = re.findall('\(([0-9]+), ([0-9]+)\) - \(([0-9]+), ([0-9]+)\)',lines)
+        # print(boxes)
+        boxes = list(map(lambda x: [int(x[0]),int(x[1]),int(x[2])-int(x[0]),int(x[3])-int(x[1])],boxes))
+
+        for box in boxes:
+            data.append({"image_id"   : Image_filename,  
+                            "category_id" : 1,  
+                            "bbox" : box})
+    return data 
+# PASCAL_1_to_coco('A3\data\Annotation\FudanPed00016.txt')
