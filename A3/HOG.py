@@ -161,11 +161,11 @@ def FasterRCNN(inp_path = os.path.join('A3','data','PNGImages'),outputpath=os.pa
     for i in range(0,len(dataset),batch_size):
         boxes += model(dataset[i:i+batch_size])
 
-    result = []
+    data = []
     for file_id,sample in enumerate(boxes):
         for i,label in enumerate(sample['labels']):
             if label==1:
-            result.append({"image_id": file_id,  
+            data.append({"image_id": file_id,  
                             "category_id": 1,  
                             "bbox" : sample['boxes'][i].tolist(), 
                                 "score" : float( sample['scores'][i])})
