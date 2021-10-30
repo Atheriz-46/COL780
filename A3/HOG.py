@@ -7,6 +7,10 @@ import imutils
 import skimage
 import sklearn
 import re
+import torchvision
+from PIL import Image
+
+
 def HOG_Predefined(inp_path = os.path.join('A3','data','PNGImages'),padding=(8, 8),winStride=(4, 4),scale=1.05,probs=None, overlapThresh=0.65,wid=400):
     
     hog = cv.HOGDescriptor()
@@ -30,7 +34,7 @@ def HOG_Predefined(inp_path = os.path.join('A3','data','PNGImages'),padding=(8, 
             for (xA, yA, xB, yB) in pick:
                 cv.rectangle(image, (xA, yA), (xB, yB), (0, 255, 0), 2)
             cv.imshow("Detector", image)
-            boxes = [ (rect[i],weights[i]) for i,x in enumerate(rects_n) if x in pick]
+            boxes = [ (rects[i],weights[i]) for i,x in enumerate(rects_n) if x in pick]
             for box in boxes:
                 result.append({"image_id": file_id,  
                                 "category_id": 1,  
@@ -130,3 +134,28 @@ def PASCAL_1_to_coco(path):
                             "bbox" : box})
     return data 
 # PASCAL_1_to_coco('A3\data\Annotation\FudanPed00016.txt')
+
+
+
+
+def FasterRCNN(inp_path = os.path.join('A3','data','PNGImages')):
+    files = sorted(os.listdir(inp_path))
+    
+    images = []
+    for file_id,imagePath in enumerate(files):
+        if imagePath[-4:]=='.png':
+            images+=[np.array(Image.open(os.path.join(inp_path,imagePath)).convert('RGB')).astype('float32').transpose(2,0,1)/255]
+    model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
+    model.eval()
+    boxes = model(torch.tensor(images))
+
+    result = []
+    for file_id,sample in enumerate(boxes):
+        for i,label in enumerate(sample['labels']):
+            if label==1:
+            result.append({"image_id": file_id,  
+                            "category_id": 1,  
+                            "bbox" : sample['boxes'][i].tolist(), 
+                                "score" : float( sample['scores'][i])})
+    with open(outputpath,'w+') as f:
+        json.dump(data,f,indent =2)
