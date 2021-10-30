@@ -32,8 +32,8 @@ def HOG_Predefined(inp_path = 'A3\data\PNGImages',padding=(8, 8),winStride=(4, 4
             cv.imshow("Detector", image)
             boxes = [ (rect[i],weights[i]) for i,x in enumerate(rects_n) if x in pick]
             for box in boxes:
-                result.append({"image_id"   : file_id,  
-                                "category_id" : 1,  
+                result.append({"image_id": file_id,  
+                                "category_id": 1,  
                                 "bbox" : box[0], 
                                 "score" : box[1]})
 
@@ -87,7 +87,7 @@ def PASCAL_1_to_coco(path):
         boxes = list(map(lambda x: [int(x[0]),int(x[1]),int(x[2])-int(x[0]),int(x[3])-int(x[1])],boxes))
 
         for box in boxes:
-            data.append({"image_id"   : Image_filename,  
+            data.append({"image_id": Image_filename,  
                             "category_id" : 1,  
                             "bbox" : box})
     return data 
