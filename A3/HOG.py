@@ -7,7 +7,7 @@ import imutils
 import skimage
 import sklearn
 import re
-import torchvision
+import torchvision,torch
 from PIL import Image
 
 
@@ -138,16 +138,28 @@ def PASCAL_1_to_coco(path):
 
 
 
-def FasterRCNN(inp_path = os.path.join('A3','data','PNGImages')):
-    files = sorted(os.listdir(inp_path))
+def FasterRCNN(inp_path = os.path.join('A3','data','PNGImages'),outputpath=os.path.join('A3','frcnn_results.json')):
+    class PFDataset(torch.utils.data.Dataset):
+        def __init__(self,root):
+            self.root=root
+            self.imgs = [x for x in sorted(os.listdir(root)) if x[-4:]=='.png']
+        
+        def __getitem__(self,idx):
+
+        #    return torch.tensor(np.array(Image.open(os.path.join(self.root,self.imgs[idx])).convert('RGB')).astype('float32').transpose(2,0,1)/255)
+        #    uncomment if above fails
+            return torch.tensor([np.array(Image.open(os.path.join(inp_path,self.imgs[idx])).convert('RGB')).astype('float32').transpose(2,0,1)/255])
+        def __len__(self):
+            return len(self.imgs)
     
-    images = []
-    for file_id,imagePath in enumerate(files):
-        if imagePath[-4:]=='.png':
-            images+=[np.array(Image.open(os.path.join(inp_path,imagePath)).convert('RGB')).astype('float32').transpose(2,0,1)/255]
+    dataset = PFDataset(inp_path)
+    
     model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
     model.eval()
-    boxes = model(torch.tensor(images))
+    batch_size = 10
+    boxes = []
+    for i in range(0,len(dataset),batch_size):
+        boxes += model(dataset[i:i+batch_size])
 
     result = []
     for file_id,sample in enumerate(boxes):
