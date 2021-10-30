@@ -7,7 +7,7 @@ import imutils
 # import skimage
 # import sklearn
 import re
-def HOG_Predefined(inp_path = 'A3\data\PNGImages',padding=(8, 8),winStride=(4, 4),scale=1.05,probs=None, overlapThresh=0.65,wid=400):
+def HOG_Predefined(inp_path = os.path.join('A3','data','PNGImages'),padding=(8, 8),winStride=(4, 4),scale=1.05,probs=None, overlapThresh=0.65,wid=400):
     
     hog = cv.HOGDescriptor()
     hog.setSVMDetector(cv.HOGDescriptor_getDefaultPeopleDetector())
@@ -45,10 +45,14 @@ def HOG_Predefined(inp_path = 'A3\data\PNGImages',padding=(8, 8),winStride=(4, 4
 
 
 
-def HOG_train(inp_path = 'A3\data\PNGImages'):
+def HOG_train(inp_path = os.path.join('A3','data','PNGImages'),positive_dset=None):
     
-    files = sorted(os.listdir(pos_inp_path))
+    # files = sorted(os.listdir(pos_inp_path))
     pos_images=[]
+    for sample in positive_dset:
+        image = cv.imread(os.path.join(pos_inp_path,sample["image_id"]+'.png'))
+        x,y,w,h = sample['bbox']
+        pos_images.append(image[x:x+h,y:y+h])
     for imagePath in files:
         if imagePath[-4:]=='.png':
             pos_images.append(cv.imread(os.path.join(pos_inp_path,imagePath)))
@@ -66,10 +70,11 @@ def HOG_train(inp_path = 'A3\data\PNGImages'):
 # HOG_Predefined()
 
 
-def preprocess(images):
+def preprocess(images,size = (400,600)):
     # skimage.feature.hog(image, orientations=9, pixels_per_cell=(8, 8), cells_per_block=(3, 3), block_norm='L2-Hys', visualize=False, transform_sqrt=False, feature_vector=True, multichannel=None, *, channel_axis=None)
     arr = []
     for image in images:
+        image = cv.resize(image,size,cv.INTER_AREA)
         arr+= [skimage.feature.hog(image,orientations = 9,block_norm='L2-Hys',feature_vector=True,transform_sqrt=True,channel_axis = 2)]
     return np.array(arr)
 

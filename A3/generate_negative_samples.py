@@ -4,7 +4,7 @@ import re
 import json
 
 
-inp_path = 'A3\data\PNGImages'
+inp_path = os.path.join('A3','data','PNGImages')
 files = sorted(os.listdir(inp_path))
 outputpath = input('Where do you want to store the results?')
 # result = []
