@@ -20,11 +20,13 @@ def selectRectangle(event, x, y, flags, param):
         startingPoint = [x,y]
     elif event == cv.EVENT_LBUTTONUP:
         endPoint = [x,y]
+        w,h = endPoint[0]-startingPoint[0],endPoint[1]-startingPoint[1]
         cv.rectangle(image, (startingPoint[0], startingPoint[1]), (endPoint[0], endPoint[1]),  (0,0,255), 2)
         data.append({"image_id": Image_filename,  
         "category_id" : 0,  
-            "bbox" : startingPoint+[endPoint[0]-startingPoint[0],endPoint[1]-startingPoint[1]]})
+            "bbox" : startingPoint+[w,h]})
         cv.imshow("Mark", image)
+        # cv.imshow('test',image[y-h:y,x-w:x])
         cv.waitKey(0)
 
 def PASCAL_1_to_coco(path):

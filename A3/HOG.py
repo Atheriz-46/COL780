@@ -4,8 +4,8 @@ import os
 from imutils.object_detection import non_max_suppression
 from imutils import paths
 import imutils
-# import skimage
-# import sklearn
+import skimage
+import sklearn
 import re
 def HOG_Predefined(inp_path = os.path.join('A3','data','PNGImages'),padding=(8, 8),winStride=(4, 4),scale=1.05,probs=None, overlapThresh=0.65,wid=400):
     
@@ -45,14 +45,14 @@ def HOG_Predefined(inp_path = os.path.join('A3','data','PNGImages'),padding=(8, 
 
 
 
-def HOG_train(inp_path = os.path.join('A3','data','PNGImages'),positive_dset=None):
+def HOG_train(positive_dset=None,negative_dset=None,inp_path = os.path.join('A3','data','PNGImages')):
     
     # files = sorted(os.listdir(pos_inp_path))
     pos_images=[]
     for sample in positive_dset:
         image = cv.imread(os.path.join(pos_inp_path,sample["image_id"]+'.png'))
         x,y,w,h = sample['bbox']
-        pos_images.append(image[x:x+h,y:y+h])
+        pos_images.append(image[y:y+h,x:x+h])
     # for imagePath in files:
     #     if imagePath[-4:]=='.png':
     #         pos_images.append(cv.imread(os.path.join(pos_inp_path,imagePath)))
@@ -63,29 +63,45 @@ def HOG_train(inp_path = os.path.join('A3','data','PNGImages'),positive_dset=Non
         image = cv.imread(os.path.join(pos_inp_path,sample["image_id"]+'.png'))
         # if imagePath[-4:]=='.png':
         x,y,w,h = sample['bbox']
-        neg_images.append(image[x:x+h,y:y+h])
+        neg_images.append(image[y:y+h,x:x+h])
         # _images.append()
-    neg_data = preprocess(neg_images)
-    ##Train SVM
-    # svm=sklearn.svm.SVC(probability=True,random_state=10)
-    svm=sklearn.linear_model.SGDClassifier(probability=True,random_state=10,warm_start=True)
-    svm.fit(np.vstack((pos_data,neg_data)),np.vstack((np.ones((len(pos_data),1)),np.zeros((len(neg_data),1)))))
+    # neg_data = preprocess(neg_images)
     ##Get sliding window images of neg_data
 
-    neg_data_extended =pass
+    neg_data_extended = generate_subsets(neg_images)
+    neg_data_extended = preprocess(neg_data_extended)
+
+    ##Train SVM
+    svm=sklearn.svm.SVC(probability=True,random_state=10)
+    # svm=sklearn.linear_model.SGDClassifier(probability=True,random_state=10,warm_start=True)
+    svm.fit(np.vstack((pos_data,neg_data)),np.vstack((np.ones((len(pos_data),1)),np.zeros((len(neg_data),1)))))
+    
 
     ##Hard Negative Mining
-    neg_data_extended = preprocess(neg_data_extended)
-    for i in range(3):
-        result=svm.predit(neg_data_extended)
-        data = neg_data_extended[result==1]
-        svm.fit(data,np.zeros((len(neg_data),1)))
+    # for i in range(3):
+    #     result=svm.predit(neg_data_extended)
+    #     data = neg_data_extended[result==1]
+    #     svm.fit(data,np.zeros((len(neg_data),1)))
 
     ##Testing code and generating output
     with open('model.sav','w+') as f:
         pickle.save(svm,f)
 # HOG_Predefined()
-
+def generate_subsets(images,scale=[2,2],stride=[5,5],kernel=[10,10]):
+    
+    result = []
+    for image in images:
+        w=kernel[0]
+        while w<len(image[0]):
+            h=kernel[1]
+            while h<len(image):
+                for x in range(0,len(image[0])-w,stride[0]):
+                    for y in range(0,len(image)-h,stride[1]):
+                        result+=[image[y:y+h,x:x+w]]
+                h*=scale[1]
+            w*=scale[0]
+    return result
+    
 
 def preprocess(images,size = (400,600)):
     # skimage.feature.hog(image, orientations=9, pixels_per_cell=(8, 8), cells_per_block=(3, 3), block_norm='L2-Hys', visualize=False, transform_sqrt=False, feature_vector=True, multichannel=None, *, channel_axis=None)
