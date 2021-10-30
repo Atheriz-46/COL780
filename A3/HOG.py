@@ -53,20 +53,37 @@ def HOG_train(inp_path = os.path.join('A3','data','PNGImages'),positive_dset=Non
         image = cv.imread(os.path.join(pos_inp_path,sample["image_id"]+'.png'))
         x,y,w,h = sample['bbox']
         pos_images.append(image[x:x+h,y:y+h])
-    for imagePath in files:
-        if imagePath[-4:]=='.png':
-            pos_images.append(cv.imread(os.path.join(pos_inp_path,imagePath)))
-    files = sorted(os.listdir(neg_inp_path))
+    # for imagePath in files:
+    #     if imagePath[-4:]=='.png':
+    #         pos_images.append(cv.imread(os.path.join(pos_inp_path,imagePath)))
+    # files = sorted(os.listdir(neg_inp_path))
     pos_data = preprocess(pos_images)
     neg_images=[]
-    for imagePath in files:
-        if imagePath[-4:]=='.png':
-            neg_images.append(cv.imread(os.path.join(neg_inp_path,imagePath)))
+    for sample in negative_dset:
+        image = cv.imread(os.path.join(pos_inp_path,sample["image_id"]+'.png'))
+        # if imagePath[-4:]=='.png':
+        x,y,w,h = sample['bbox']
+        neg_images.append(image[x:x+h,y:y+h])
+        # _images.append()
     neg_data = preprocess(neg_images)
     ##Train SVM
-    ##Hard Negative Mining
-    ##Testing code and generating output
+    # svm=sklearn.svm.SVC(probability=True,random_state=10)
+    svm=sklearn.linear_model.SGDClassifier(probability=True,random_state=10,warm_start=True)
+    svm.fit(np.vstack((pos_data,neg_data)),np.vstack((np.ones((len(pos_data),1)),np.zeros((len(neg_data),1)))))
+    ##Get sliding window images of neg_data
 
+    neg_data_extended =pass
+
+    ##Hard Negative Mining
+    neg_data_extended = preprocess(neg_data_extended)
+    for i in range(3):
+        result=svm.predit(neg_data_extended)
+        data = neg_data_extended[result==1]
+        svm.fit(data,np.zeros((len(neg_data),1)))
+
+    ##Testing code and generating output
+    with open('model.sav','w+') as f:
+        pickle.save(svm,f)
 # HOG_Predefined()
 
 
