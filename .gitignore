@@ -1,3 +1,6 @@
+#Data files
+A1/test
+A3/PennFudanPed
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -140,3 +143,5 @@ A3/PennFudanPed.zip
 A3/PAScode/PASclasses.txt
 A3/PAScode/README.txt
 PennFudanPed.zip
+A3/pedestrian_detection.zip
+A1/test.zip

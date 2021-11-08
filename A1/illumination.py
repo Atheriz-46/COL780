@@ -40,4 +40,5 @@ def model(args):
             fgMask = backSub.apply(frame)
             fgMask = remove_noise(fgMask,3)
             if frame_no>=start and frame_no<=end:
-                cv.imwrite(os.path.join(args.out_path,'gt' + file[2:-3]+'png'),fgMask))
+                cv.imwrite(os.path.join(args.out_path,'gt' + file[2:-3]+'png'),fgMask)
+
