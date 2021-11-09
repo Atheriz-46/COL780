@@ -58,7 +58,7 @@ def HOG_Predefined(padding=(8, 8),winStride=(4, 4),scale=1.05,probs=None, overla
             # print(list(map(type,result[-1].values())))
             # print(result[-1].values())
             # exit(0)
-            if cv.waitKey(10)==27:
+            if cv.waitKey(1)==27:
                 break
     # with open('output_1.json','w+') as f:
     with open(args.out,'w+') as f:
