@@ -19,7 +19,7 @@ parser.add_argument('--test', type=str, help='path to test json')
 parser.add_argument('--out', type=str, help='path to output json')
 args = parser.parse_args()
 
-def HOG_Predefined(s=[0.1,0.0],area=35000,k=5,padding=(8, 8),winStride=(4, 4),scale=1.02,probs=None, overlapThresh=0.07,wid=700):
+def HOG_Predefined(s=[0.1,0.0],area=35000,k=4e-2,padding=(14, 14),winStride=(4, 4),scale=1.02,probs=None, overlapThresh=0.08,wid=700):
     
     hog = cv.HOGDescriptor()
     hog.setSVMDetector(cv.HOGDescriptor_getDefaultPeopleDetector())
@@ -46,8 +46,8 @@ def HOG_Predefined(s=[0.1,0.0],area=35000,k=5,padding=(8, 8),winStride=(4, 4),sc
             # print(weights)
             rects_n = np.array([[x, y, (x + w), (y + h)] for (x, y, w, h) in rects])
             pick = non_max_suppression(rects_n, probs=probs, overlapThresh=overlapThresh)
-            for (xA, yA, xB, yB) in pick:
-                cv.rectangle(image, (xA, yA), (xB, yB), (0, 255, 0), 2)
+            # for (xA, yA, xB, yB) in pick:
+            #     cv.rectangle(image, (xA, yA), (xB, yB), (0, 255, 0), 2)
             # cv.imshow("Detector", image)
             boxes,weight = [],[]
             for i,x in enumerate(rects_n):
@@ -56,7 +56,8 @@ def HOG_Predefined(s=[0.1,0.0],area=35000,k=5,padding=(8, 8),winStride=(4, 4),sc
                     if w*h>area:
                         boxes+=[[x+w*s[0],y+h*s[0],w*(1-2*s[0]),h*(1-2*s[0])]]
                     else:
-                        boxes+=[[x+w*s[1],y+h*s[1],w*(1-2*s[1]),h*(1-2*s[1])]]
+                        boxes+=[[x+w*s[1],y+h*s[1],w,h]]
+                        # boxes+=[[x+w*s[1],y+h*s[1],w*(1-2*s[1]),h*(1-2*s[1])]]
                     # print(boxes)
                     weight+=[weights[i]]
                     # weight.append(weights[i])
@@ -65,14 +66,15 @@ def HOG_Predefined(s=[0.1,0.0],area=35000,k=5,padding=(8, 8),winStride=(4, 4),sc
 
             # to activate softmax
             # weight = np.exp(weight)
-            weight = weight/np.sum(weight)
+            weight = (weight+k)/np.sum(weight+k)
             
             for box,w in zip(boxes,weight):
                 # print(file_id)
                 result.append({"image_id": file_id,  
                                 "category_id": 1,  
                                 "bbox" : box, 
-                                "score" : k*w[0]})
+                                "score" : w[0]
+                                })
 
             # print(list(map(type,result[-1].values())))
             # print(result[-1].values())

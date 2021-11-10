@@ -10,6 +10,15 @@ import re
 # import torchvision,torch
 from PIL import Image
 import json
+import argparse
+import torch
+import torchvision
+
+parser = argparse.ArgumentParser(description='This script should use a pretrained HoG detector to make predictions on the provided test set, and store the detections in COCO format in the output file.')
+parser.add_argument('--root', type=str, help='path to dataset root directory')
+parser.add_argument('--test', type=str, help='path to test json')
+parser.add_argument('--out', type=str, help='path to output json')
+args = parser.parse_args()
 
 
 def HOG_Predefined(inp_path = os.path.join('A3','data','PNGImages'),padding=(8, 8),winStride=(4, 4),scale=1.05,probs=None, overlapThresh=0.65,wid=400):
@@ -56,9 +65,9 @@ def HOG_Predefined(inp_path = os.path.join('A3','data','PNGImages'),padding=(8, 
         json.dump(result,f,indent =2)
     # return result
 
-HOG_Predefined()
+#HOG_Predefined()
 
-'''
+
 def HOG_train(positive_dset=None,negative_dset=None,inp_path = os.path.join('A3','data','PNGImages')):
     
     # files = sorted(os.listdir(pos_inp_path))
@@ -147,37 +156,43 @@ def PASCAL_1_to_coco(path):
 
 
 
-def FasterRCNN(inp_path = os.path.join('A3','data','PNGImages'),outputpath=os.path.join('A3','frcnn_results.json')):
+def FasterRCNN(inp_path = args.root,test_path = args.test,outputpath=args.out):
+    
     class PFDataset(torch.utils.data.Dataset):
-        def __init__(self,root):
+        def __init__(self,root,test_data):
             self.root=root
-            self.imgs = [x for x in sorted(os.listdir(root)) if x[-4:]=='.png']
+            self.ids = [x['id'] for x in test_data]
+            self.imgs = [x for x in test_data]
         
         def __getitem__(self,idx):
 
         #    return torch.tensor(np.array(Image.open(os.path.join(self.root,self.imgs[idx])).convert('RGB')).astype('float32').transpose(2,0,1)/255)
         #    uncomment if above fails
-            return torch.tensor([np.array(Image.open(os.path.join(inp_path,self.imgs[idx])).convert('RGB')).astype('float32').transpose(2,0,1)/255])
+            return torch.tensor([np.array(Image.open(os.path.join(args.root,*self.imgs[idx]['file_name'].split('/'))).convert('RGB')).astype('float32').transpose(2,0,1)/255])
         def __len__(self):
             return len(self.imgs)
-    
-    dataset = PFDataset(inp_path)
+
+    with open(args.test,'r+') as f:
+        data = json.load(f)
+    dataset = PFDataset(inp_path,data['images'])
     
     model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
     model.eval()
     batch_size = 10
     boxes = []
-    for i in range(0,len(dataset),batch_size):
-        boxes += model(dataset[i:i+batch_size])
+    for i in range(0,len(dataset)):
+        boxes += model(dataset[i])
 
     data = []
-    for file_id,sample in enumerate(boxes):
+    for idx,sample in enumerate(boxes):
+        file_id = dataset['images'][idx]['id']
         for i,label in enumerate(sample['labels']):
             if label==1:
-            data.append({"image_id": file_id,  
+                data.append({"image_id": file_id,  
                             "category_id": 1,  
                             "bbox" : sample['boxes'][i].tolist(), 
                                 "score" : float( sample['scores'][i])})
     with open(outputpath,'w+') as f:
         json.dump(data,f,indent =2)
-'''
+
+FasterRCNN()

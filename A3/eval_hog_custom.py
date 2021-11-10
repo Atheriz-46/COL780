@@ -5,7 +5,7 @@ k =8
 wid=400 
 winStride=(4, 4)
 scale=1.05
-winSize = (16,16)
+winSize = (64,16)
 
 ##################################################################################
 
@@ -38,14 +38,14 @@ args = parser.parse_args()
 
 def get_datapoints(data_path,**kwargs):
     with open(data_path,'r+') as f:
-        positive = json.load(f)
-    file_name = {x['id'] : x['file_name'] for x in positive['images']}
+        data = json.load(f)
+    file_name = {x['id'] : x['file_name'] for x in data['images']}
     pos_data={}
     for sample in data['annotations']:
         bbox = sample['bbox']
         image_path = file_name[sample['image_id']]
         with cv.imread(os.path.join(args.root,*image_path.split('/'))) as image:
-            image = imutils.resize(image, width=int(scale*min(wid, image.shape[1])))
+            # image = imutils.resize(image, width=int(scale*min(wid, image.shape[1])))
             
             x,y,w,h = list(map(int,bbox))
             
@@ -54,13 +54,43 @@ def get_datapoints(data_path,**kwargs):
             for i in range(0,h-winSize[0],winStride[0]):
                 for j in range(0,w-winSize[1],winStride[1]):
                     img = image[i:i+winSize[0],j:j+winSize[1]]
-                    arr+= [skimage.feature.hog(image,orientations = 9,block_norm='L2-Hys',feature_vector=True,transform_sqrt=True,channel_axis = 2)]
-            pos[sample['id']] = arr    
-    return pos  
+                    arr+= [skimage.feature.hog(img,orientations = 9,block_norm='L2-Hys',feature_vector=True,transform_sqrt=True,channel_axis = 2)]
+            pos_data[sample['id']] = arr    
+    return pos_data  
 
-def get_test_datapoints():
-    pass
+def get_test_datapoints(data_path,kmeans,**kwargs):
+    with open(data_path,'r+') as f:
+        data = json.load(f)
+    # file_name = {x['id'] : x['file_name'] for x in positive['images']}
+    # pos_data={}
+    for sample in data['images']:
+        # bbox = sample['bbox']
+        id_ = sample['id']
+        image_path = sample['file_name']
+        with cv.imread(os.path.join(args.root,*image_path.split('/'))) as image:
+            # image = imutils.resize(image, width=int(scale*min(wid, image.shape[1])))
+            
+            # x,y,w,h = list(map(int,bbox))
+            w,h = sample['width'],sample['height']
+            # image = image[y:y+h,x:x+w]
+            # arr = {}
+            idy,idx = int((h-winSize[0])//winStride[0]),int((w-winSize[1])//winStride[1])
+            arr = np.zeros((idy,idx))
+            for i in range(idy):
+                for j in range(idx):
+                    img = image[i*winStride[0]:i*winStride[0]+winSize[0],j*winStride[1]:j*winStride[1]+winSize[1]]
+                    x = skimage.feature.hog(img,orientations = 9,block_norm='L2-Hys',feature_vector=True,transform_sqrt=True,channel_axis = 2)
+                    arr[i,j] = kmeans.predict(x)[0]
 
+            # pos[sample['id']] = arr    
+        yield arr,id_
+    # return pos  
+def convert_dict_to_linear(*args):
+    res = []
+    for d in args:
+        for _,v in d:
+            res+=v
+    return res
 
 def HOG_train():
     
@@ -69,7 +99,7 @@ def HOG_train():
     neg_sample = get_datapoints(args.negative, wid=wid, winStride=winStride, scale=scale, winSize=winSize)
     
     #convert pos_sample,neg_sample to nparray
-    X = None
+    X = convert_dict_to_linear(pos_sample,neg_sample)
 
     premodel = sklearn.cluster.KMeans(n_clusters=k,init='k-means++', n_init = 10, max_iter=300, tol=0.0001).fit(X)
     del X 
@@ -104,15 +134,77 @@ def HOG_train():
 
 
 
+def get_bbox(dp,svm,confidenceTreshold=0.7):
+    bbox,scores = [],[]
+    for y in range(dp.shape[0]):
+        for x in range(dp.shape[1]):
+            for h in range(dp.shape[0]-y):
+                for w in range(dp.shape[1]-x):
+                    fv = np.bincount(dp[y:y+h,x:x+w],minlength=k)
+                    if svm.predict(fv)==1:
+                        s = svm.decision_function(fv)
+                        if s>confidenceTreshold:
+                            bbox.append([x*winStride[1],y*winStride[0],w*winStride[1]+winSize[1],h*winStride[0]+winSize[0]])  
+                            scores.append([s])
 
-def HOG_test():
-    model = pass 
+    return bbox, scores
 
-    val_sample = get_test_datapoints(args.test, wid=wid, winStride=winStride, scale=scale, winSize=winSize)
-    for id_, sample in val_sample.items():
-        x += [np.bincount(model['kmeans'].predit(sample),minlength=k)]
-    x = np.array(x)
-    y = model['svm'].predict(x)
+
+
+def HOG_test(probs=None, overlapThresh=0.07):
+
+    # Read model from
+    with open(args.model, 'r+') as f:
+        model = pickle.load(f) 
+
+    # val_sample = 
+    # for id_, sample in val_sample.items():
+        # x += [np.bincount(model['kmeans'].predit(sample),minlength=k)]
+    for image,file_id in get_test_datapoints(args.test,model['kmeans'],wid=wid, winStride=winStride, scale=scale, winSize=winSize):
+        bbox,scores = get_bbox(image,model['svm'])
+        bbox_n = np.array([[x, y, (x + w), (y + h)] for (x, y, w, h) in bbox])
+
+        pick = non_max_suppression(bbox, probs=probs, overlapThresh=overlapThresh)
+        boxes,weight = [],[]
+        for i,x in enumerate(bbox_n):
+            if x in pick:
+                x,y,w,h = bbox[i].tolist()
+                if w*h>area:
+                    boxes+=[[x+w*s[0],y+h*s[0],w*(1-2*s[0]),h*(1-2*s[0])]]
+                else:
+                    boxes+=[[x+w*s[1],y+h*s[1],w,h]]
+                    # boxes+=[[x+w*s[1],y+h*s[1],w*(1-2*s[1]),h*(1-2*s[1])]]
+                # print(boxes)
+                weight+=[weights[i]]
+                # weight.append(weights[i])
+        
+        weight = np.array(weight)
+
+        # to activate softmax
+        # weight = np.exp(weight)
+        weight = (weight+k)/np.sum(weight+k)
+        
+        for box,w in zip(boxes,weight):
+            # print(file_id)
+            result.append({"image_id": file_id,  
+                            "category_id": 1,  
+                            "bbox" : box, 
+                            "score" : w[0]
+                            })
+
+        # print(list(map(type,result[-1].values())))
+        # print(result[-1].values())
+        # exit(0)
+        # if cv.waitKey(1)==27:
+            # break
+    # with open('output_1.json','w+') as f
+    # print(result)
+
+    with open(args.out,'w+') as f:
+        json.dump(result,f,indent =2)
+        # for (xA, yA, xB, yB) in pick:
+            # cv.rectangle(image, (xA, yA), (xB, yB), (0, 255, 0), 2)
+        # cv.imshow("Detector", image)
 
 
 
