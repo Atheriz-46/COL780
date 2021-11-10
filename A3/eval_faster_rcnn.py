@@ -58,11 +58,13 @@ def FasterRCNN(inp_path = args.root,test_path = args.test,outputpath=args.out):
         # print(idx)
         sample = model(dataset[idx:idx+batch_size])[0]
         file_id = data['images'][idx]['id']
+        
         for i,label in enumerate(sample['labels']):
             if label==1:
+                x,y,xx,yy = sample['boxes'][i].tolist()
                 res.append({"image_id": file_id,  
                             "category_id": 1,  
-                            "bbox" : sample['boxes'][i].tolist(), 
+                            "bbox" : [x,y,xx-x,yy-y] , 
                             "score" : float( sample['scores'][i])})
     print(1)
     # for idx,sample in enumerate(boxes):
