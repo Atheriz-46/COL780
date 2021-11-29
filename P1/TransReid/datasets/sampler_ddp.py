@@ -150,8 +150,9 @@ class RandomIdentitySampler_DDP(Sampler):
         self._seed = int(seed)
         final_idxs = self.sample_list()
         length = int(math.ceil(len(final_idxs) * 1.0 / self.world_size))
-        final_idxs = final_idxs[self.rank * length:(self.rank + 1) * length]
-        # final_idxs = self.__fetch_current_node_idxs(final_idxs, length)
+        # final_idxs = final_idxs[self.rank * length:(self.rank + 1) * length]
+        # print(final_idxs)
+        final_idxs = self.__fetch_current_node_idxs(final_idxs, length)
         self.length = len(final_idxs)
         return iter(final_idxs)
 
