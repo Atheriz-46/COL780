@@ -58,7 +58,7 @@ class Custom(BaseImageDataset):
         # img_paths = glob.glob(osp.join(dir_path, '*.jpg'))
         img_paths = glob.glob(osp.join(dir_path, '*','*.png'))
         # pattern = re.compile(r'([-\d]+)_c(\d)')
-        pattern = re.compile(r'([0-9]+)[/\\]([^_]+)_')
+        pattern = re.compile(r'[/\\]([0-9]+)[/\\]([^_]+)_[\d]+')
         pid_container = set()
         for img_path in sorted(img_paths):
             pid, _ = map(int, pattern.search(img_path).groups())

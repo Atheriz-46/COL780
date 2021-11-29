@@ -40,6 +40,7 @@ def do_train(cfg,
     evaluator = R1_mAP_eval(num_query, max_rank=50, feat_norm=cfg.TEST.FEAT_NORM)
     scaler = amp.GradScaler()
     # train
+    n_iter=0
     for epoch in range(1, epochs + 1):
         start_time = time.time()
         loss_meter.reset()

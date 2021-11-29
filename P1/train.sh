@@ -1,1 +1,1 @@
-python TransReid/train.py --config_file TransReid/configs/custom/custom.yml
+python -m torch.distributed.launch TransReid/train.py --config_file TransReid/configs/custom/custom.yml
