@@ -1,0 +1,22 @@
+{
+"images": [
+    {"file_name": "PennFudanPed/PNGImages/PennPed00004.png", "height": 436, "width": 786, "id": 0},
+	{"file_name": "PennFudanPed/PNGImages/PennPed00085.png", "height": 341, "width": 403, "id": 1},
+	{"file_name": "PennFudanPed/PNGImages/FudanPed00048.png", "height": 559, "width": 585, "id": 2},
+	{"file_name": "PennFudanPed/PNGImages/PennPed00082.png", "height": 321, "width": 398, "id": 3}
+],
+"annotations": [
+    {"area": 35947, "iscrowd": 0, "bbox": [66.0, 60.0, 103.0, 349.0], "category_id": 1, "image_id": 0, "id": 0, "ignore": 0, "segmentation": []}, 
+    {"area": 28812, "iscrowd": 0, "bbox": [154.0, 90.0, 98.0, 294.0], "category_id": 1, "image_id": 0, "id": 1, "ignore": 0, "segmentation": []}, 
+    {"area": 28809, "iscrowd": 0, "bbox": [227.0, 93.0, 97.0, 297.0], "category_id": 1, "image_id": 0, "id": 2, "ignore": 0, "segmentation": []}, 
+    {"area": 28710, "iscrowd": 0, "bbox": [416.0, 100.0, 99.0, 290.0], "category_id": 1, "image_id": 0, "id": 3, "ignore": 0, "segmentation": []}, 
+    {"area": 39615, "iscrowd": 0, "bbox": [594.0, 111.0, 139.0, 285.0], "category_id": 1, "image_id": 0, "id": 4, "ignore": 0, "segmentation": []}, 
+    {"area": 30525, "iscrowd": 0, "bbox": [88.0, 26.0, 111.0, 275.0], "category_id": 1, "image_id": 1, "id": 5, "ignore": 0, "segmentation": []}, 
+    {"area": 35793, "iscrowd": 0, "bbox": [244.0, 37.0, 123.0, 291.0], "category_id": 1, "image_id": 1, "id": 6, "ignore": 0, "segmentation": []}, 
+    {"area": 22854, "iscrowd": 0, "bbox": [5.0, 241.0, 78.0, 293.0], "category_id": 1, "image_id": 2, "id": 7, "ignore": 0, "segmentation": []}, 
+    {"area": 14560, "iscrowd": 0, "bbox": [78.0, 230.0, 65.0, 224.0], "category_id": 1, "image_id": 2, "id": 8, "ignore": 0, "segmentation": []}, 
+    {"area": 26784, "iscrowd": 0, "bbox": [157.0, 218.0, 93.0, 288.0], "category_id": 1, "image_id": 2, "id": 9, "ignore": 0, "segmentation": []}, 
+    {"area": 33720, "iscrowd": 0, "bbox": [459.0, 262.0, 120.0, 281.0], "category_id": 1, "image_id": 2, "id": 10, "ignore": 0, "segmentation": []}, 
+    {"area": 43210, "iscrowd": 0, "bbox": [79.0, 21.0, 149.0, 290.0], "category_id": 1, "image_id": 3, "id": 11, "ignore": 0, "segmentation": []}
+]
+}
