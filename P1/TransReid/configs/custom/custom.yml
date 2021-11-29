@@ -1,6 +1,6 @@
 MODEL:
   PRETRAIN_CHOICE: 'imagenet'
-  PRETRAIN_PATH: 'jx_vit_base_p16_224-80ecf9dd.pth'
+  PRETRAIN_PATH: '../jx_vit_base_p16_224-80ecf9dd.pth'
   METRIC_LOSS_TYPE: 'triplet'
   IF_LABELSMOOTH: 'off'
   IF_WITH_CENTER: 'no'
@@ -22,7 +22,7 @@ INPUT:
   PADDING: 10
 
 DATASETS:
-  NAMES: ('Custom')
+  NAMES: ('custom')
   ROOT_DIR: ('')
 
 DATALOADER:

@@ -8,7 +8,7 @@ from .sampler import RandomIdentitySampler
 from .dukemtmcreid import DukeMTMCreID
 from .market1501 import Market1501
 from .msmt17 import MSMT17
-from custom import Custom
+from .custom import Custom
 from .sampler_ddp import RandomIdentitySampler_DDP
 import torch.distributed as dist
 from .occ_duke import OCC_DukeMTMCreID

@@ -1,1 +1,1 @@
-python train.py --config_file TransReid/configs/custom/custom.yml
+python TransReid/train.py --config_file TransReid/configs/custom/custom.yml
