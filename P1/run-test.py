@@ -23,7 +23,7 @@ from torch.utils.data import DataLoader, Dataset
 from utils import get_id
 from metrics import rank1, rank5, calc_ap
 
-from .TransReid.model.make_model import make_model
+from TransReid.model.make_model import make_model
  
 # ### Set feature volume sizes (height, width, depth) 
 # TODO: update with your model's feature length
@@ -32,7 +32,7 @@ batch_size = 1
 H, W, D = 7, 7, 2048 # for dummymodel we have feature volume 7x7x2048
 
 # ### Load Model
-from .TransReid.config import cfg
+from TransReid.config import cfg
 import argparse
 # TODO: Uncomment the following lines to load the Implemented and trained Model
 
@@ -76,7 +76,7 @@ model.eval()
 #         'query': transforms.Compose( transform_query_list ),
 #         'gallery': transforms.Compose(transform_gallery_list),
 #     }
-from .TransReid.dataset.make_dataloader import make_dataloader
+from TransReid.dataset.make_dataloader import make_dataloader
 train_loader, train_loader_normal, val_loader, num_query, num_classes, camera_num, view_num = make_dataloader(cfg)
 # image_datasets = {}
 # image_datasets['query']=val_loader[:num_query]
