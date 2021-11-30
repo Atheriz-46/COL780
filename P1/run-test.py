@@ -78,9 +78,9 @@ model.eval()
 #     }
 from .TransReid.dataset.make_dataloader import make_dataloader
 train_loader, train_loader_normal, val_loader, num_query, num_classes, camera_num, view_num = make_dataloader(cfg)
-image_datasets = {}
-image_datasets['query']=val_loader[:num_query]
-image_datasets['gallery']=val_loader[num_query:]
+# image_datasets = {}
+# image_datasets['query']=val_loader[:num_query]
+# image_datasets['gallery']=val_loader[num_query:]
 # data_dir = "data/val"
 
 # image_datasets['query'] = datasets.ImageFolder(os.path.join(data_dir, 'query'),
@@ -95,9 +95,31 @@ image_datasets['gallery']=val_loader[num_query:]
 
 # ###  Extract Features
 
-def extract_feature(dataloaders):
+# def extract_feature(dataloaders):
     
-    features =  torch.FloatTensor()
+#     features =  torch.FloatTensor()
+#     count = 0
+#     idx = 0
+#     for data in tqdm(dataloaders):
+#         img, pid, camid, camids, target_view, imgpath=data
+#         # img, label = data
+#         # Uncomment if using GPU for inference
+#         if torch.cuda.is_available():
+#             img, camid, target_view = img.cuda(),camid.cuda(), target_view.cuda()
+
+#         output = model(cam_label=camids, view_label=target_view) # (B, D, H, W) --> B: batch size, HxWxD: feature volume size
+
+#         n, c, h, w = img.size()
+        
+#         count += n
+#         features = torch.cat((features, output.detach().cpu()), 0)
+#         idx += 1
+#     return features
+def extract_feature(dataloaders,num_query):
+    
+    feats =  []
+    pids = []
+    camids = []
     count = 0
     idx = 0
     for data in tqdm(dataloaders):
@@ -107,30 +129,41 @@ def extract_feature(dataloaders):
         if torch.cuda.is_available():
             img, camid, target_view = img.cuda(),camid.cuda(), target_view.cuda()
 
-        output = model(cam_label=camids, view_label=target_view) # (B, D, H, W) --> B: batch size, HxWxD: feature volume size
+        output = model(img,cam_label=camids, view_label=target_view) # (B, D, H, W) --> B: batch size, HxWxD: feature volume size
 
-        n, c, h, w = img.size()
+        # n, c, h, w = img.size()
         
-        count += n
-        features = torch.cat((features, output.detach().cpu()), 0)
+        # count += n
+        feats = torch.cat((features, output.detach().cpu()), 0)
+        feats.append(output.detach().cpu())
+        pids.extend(np.asarray(pid))
+        camids.extend(np.asarray(camid))
         idx += 1
-    return features
+    features = torch.cat(feats, dim=0)
+    qf = feats[:num_query]
+    q_pids = np.asarray(pids[:num_query])
+    q_camids = np.asarray(camids[:num_query])
+        # gallery
+    gf = feats[num_query:]
+    g_pids = np.asarray(pids[num_query:])
 
+    g_camids = np.asarray(camids[num_query:])
+    return qf,q_pids,q_camids,gf,g_pids,g_camids
 # Extract Query Features
 
-query_feature= extract_feature(query_loader)
+query_feature,query_label,query_cam,gallery_feature,gallery_label,gallery_cam= extract_feature(val_loader)
 
-# Extract Gallery Features
+# # Extract Gallery Features
 
-gallery_feature = extract_feature(gallery_loader)
+# gallery_feature = extract_feature(gallery_loader)
 
-# Retrieve labels
+# # Retrieve labels
 
-gallery_path = [d[-1] for d in image_datasets['gallery']]
-query_path = [d[-1] for d in image_datasets['query']]
+# gallery_path = [d[-1] for d in image_datasets['gallery']]
+# query_path = [d[-1] for d in image_datasets['query']]
 
-gallery_cam,gallery_label = get_id(gallery_path)
-query_cam,query_label = get_id(query_path)
+# gallery_cam,gallery_label = get_id(gallery_path)
+#  = get_id(query_path)
 
 
 # ## Concat Averaged GELTs
