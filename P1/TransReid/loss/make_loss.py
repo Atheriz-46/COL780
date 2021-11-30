@@ -8,6 +8,7 @@ import torch.nn.functional as F
 from .softmax_loss import CrossEntropyLabelSmooth, LabelSmoothingCrossEntropy
 from .triplet_loss import TripletLoss
 from .center_loss import CenterLoss
+from .metric_learning import CircleLoss
 
 
 def make_loss(cfg, num_classes):    # modified by gu
@@ -21,6 +22,16 @@ def make_loss(cfg, num_classes):    # modified by gu
         else:
             triplet = TripletLoss(cfg.SOLVER.MARGIN)  # triplet loss
             print("using triplet loss with margin:{}".format(cfg.SOLVER.MARGIN))
+    # elif 'circle' in cfg.MODEL.METRIC_LOSS_TYPE:
+    #     in_features, num_classes = None
+    #     if s and m:
+    #         triplet = CircleLoss(in_features, num_classes,s=s,m=m)
+    #     elif s:
+    #         triplet = CircleLoss(in_features, num_classes,s=s)
+    #     elif m:
+    #         triplet = CircleLoss(in_features, num_classes,m=m)
+    #     else:
+    #         triplet = CircleLoss(in_features, num_classes)
     else:
         print('expected METRIC_LOSS_TYPE should be triplet'
               'but got {}'.format(cfg.MODEL.METRIC_LOSS_TYPE))
